@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { parseISO, isToday, isFuture, format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
 import { Trash2, ArrowUpCircle, ArrowDownCircle, ChevronDown } from 'lucide-react'
 import type { DayGroup, Transaction } from '@/lib/types'
 
@@ -23,28 +22,28 @@ interface TimelineProps {
 function TransactionItem({ transaction, onDelete }: { transaction: Transaction; onDelete: (id: string) => void }) {
   const isEntrada = transaction.type === 'entrada'
   return (
-    <div className="flex items-center gap-2 py-2 px-3 bg-background rounded-lg border border-border">
-      <div className={cn('flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center',
-        isEntrada ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600')}>
-        {isEntrada ? <ArrowUpCircle className="w-4 h-4" /> : <ArrowDownCircle className="w-4 h-4" />}
+    <div className="flex items-center gap-3 py-2.5 px-3 bg-muted/40 rounded-xl">
+      <div className={cn(
+        'shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
+        isEntrada ? 'bg-emerald-500/15 text-emerald-600' : 'bg-red-500/15 text-red-500'
+      )}>
+        {isEntrada
+          ? <ArrowUpCircle className="w-4 h-4" />
+          : <ArrowDownCircle className="w-4 h-4" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{transaction.description}</p>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          {transaction.category && <span className="text-[10px] text-muted-foreground">{transaction.category}</span>}
-          <Badge variant={transaction.status === 'confirmado' ? 'default' : 'outline'} className="text-[9px] px-1 py-0 h-4">
-            {transaction.status}
-          </Badge>
-          {transaction.isRecurring && <span className="text-[10px] text-violet-500">● recorrente</span>}
-        </div>
+        <p className="text-sm font-medium leading-tight truncate">{transaction.description}</p>
+        {transaction.category && (
+          <p className="text-[11px] text-muted-foreground mt-0.5">{transaction.category}</p>
+        )}
       </div>
-      <div className="flex items-center gap-1.5">
-        <span className={cn('font-semibold tabular-nums text-sm', isEntrada ? 'text-emerald-600' : 'text-red-600')}>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className={cn('text-sm font-bold tabular-nums', isEntrada ? 'text-emerald-600' : 'text-red-500')}>
           {isEntrada ? '+' : '-'}{fmtFull(Number(transaction.amount))}
         </span>
         <button
           onClick={() => onDelete(transaction.id)}
-          className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+          className="p-1.5 -mr-1 rounded-lg text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10 transition-colors active:scale-90"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -54,96 +53,95 @@ function TransactionItem({ transaction, onDelete }: { transaction: Transaction; 
 }
 
 function DayRow({ day, onDeleteTransaction }: { day: DayGroup; onDeleteTransaction: (id: string) => void }) {
-  const [expanded, setExpanded] = useState(false)
   const date = parseISO(day.date)
   const today = isToday(date)
   const future = isFuture(date)
   const hasTransactions = day.transactions.length > 0
-
-  // Expande automaticamente o dia de hoje
-  useEffect(() => { if (today) setExpanded(true) }, [today])
+  const [expanded, setExpanded] = useState(today)
 
   const balance = day.accumulatedBalance
-  const balancePositive = balance >= 0
+  const positive = balance >= 0
+
+  // Dias sem transação e que não são hoje: não renderiza nada
+  if (!hasTransactions && !today) return null
 
   return (
-    <div
-      id={today ? 'today-row' : undefined}
-      className={cn(
-        'border-b border-border/50 transition-colors',
-        today && 'bg-primary/5',
-        !today && hasTransactions && 'hover:bg-muted/30',
-        !hasTransactions && !today && 'opacity-50'
-      )}
-    >
-      {/* Linha principal — sempre clicável */}
+    <div id={today ? 'today-row' : undefined}>
       <button
-        className="w-full flex items-center gap-3 px-4 py-2.5 text-left"
+        className={cn(
+          'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors active:bg-muted/50',
+          today && 'bg-primary/5',
+          hasTransactions && !today && 'hover:bg-muted/30'
+        )}
         onClick={() => hasTransactions && setExpanded(v => !v)}
       >
-        {/* Data DD/MM */}
-        <div className="w-14 flex-shrink-0">
-          <p className={cn('text-sm font-semibold tabular-nums', today ? 'text-primary' : 'text-foreground')}>
+        {/* Dia */}
+        <div className="w-12 shrink-0">
+          <p className={cn(
+            'text-base font-bold tabular-nums leading-none',
+            today ? 'text-primary' : future ? 'text-muted-foreground' : 'text-foreground'
+          )}>
             {format(date, 'dd/MM')}
           </p>
-          <p className="text-[10px] text-muted-foreground capitalize">
-            {format(date, 'EEE', { locale: ptBR })}
+          <p className="text-[10px] text-muted-foreground capitalize mt-0.5">
+            {today ? 'hoje' : format(date, 'EEE', { locale: ptBR })}
           </p>
         </div>
 
-        {/* Indicador hoje */}
-        {today && (
-          <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full font-medium">
-            Hoje
-          </span>
-        )}
-
-        {/* Movimentações do dia */}
-        <div className="flex-1 flex items-center gap-2 min-w-0">
+        {/* Movimentos */}
+        <div className="flex-1 flex flex-col gap-0.5 min-w-0">
           {hasTransactions ? (
             <div className="flex items-center gap-2 flex-wrap">
               {day.totalEntradas > 0 && (
-                <span className="text-xs text-emerald-600 font-medium">+{fmt(day.totalEntradas)}</span>
+                <span className="text-xs text-emerald-600 font-semibold">+{fmt(day.totalEntradas)}</span>
               )}
               {day.totalSaidas > 0 && (
-                <span className="text-xs text-red-500 font-medium">-{fmt(day.totalSaidas)}</span>
+                <span className="text-xs text-red-500 font-semibold">-{fmt(day.totalSaidas)}</span>
               )}
             </div>
           ) : (
-            <span className="text-xs text-muted-foreground/50">—</span>
+            <span className="text-xs text-muted-foreground/40">sem lançamentos</span>
           )}
         </div>
 
         {/* Saldo acumulado */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <span className={cn('text-sm font-bold tabular-nums', balancePositive ? 'text-emerald-600' : 'text-red-500')}>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className={cn(
+            'text-sm font-bold tabular-nums',
+            positive ? 'text-emerald-600' : 'text-red-500'
+          )}>
             {fmt(balance)}
           </span>
           {hasTransactions && (
-            <ChevronDown className={cn('w-3.5 h-3.5 text-muted-foreground transition-transform', expanded && 'rotate-180')} />
+            <ChevronDown className={cn(
+              'w-3.5 h-3.5 text-muted-foreground/50 transition-transform duration-200',
+              expanded && 'rotate-180'
+            )} />
           )}
         </div>
       </button>
 
       {/* Transações expandidas */}
       {expanded && hasTransactions && (
-        <div className="px-4 pb-3 space-y-1.5">
+        <div className="px-4 pb-3 space-y-2">
           {day.transactions.map(t => (
             <TransactionItem key={t.id} transaction={t} onDelete={onDeleteTransaction} />
           ))}
         </div>
       )}
+
+      {/* Separador */}
+      <div className="h-px bg-border/50 mx-4" />
     </div>
   )
 }
 
-// Agrupa dias por mês para mostrar cabeçalho de mês
 function MonthHeader({ month }: { month: string }) {
   const [year, m] = month.split('-')
   const date = new Date(parseInt(year), parseInt(m) - 1, 1)
   return (
-    <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-1.5 flex items-center justify-between">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground capitalize">
+    <div className="sticky top-0 z-10 bg-background/98 backdrop-blur-sm px-4 py-2 border-b border-border">
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
         {format(date, 'MMMM yyyy', { locale: ptBR })}
       </p>
     </div>
@@ -151,26 +149,23 @@ function MonthHeader({ month }: { month: string }) {
 }
 
 export function Timeline({ days, onDeleteTransaction, isLoading }: TimelineProps) {
-  const todayRef = useRef<HTMLDivElement>(null)
-
-  // Auto-scroll para hoje ao carregar
+  // Auto-scroll para hoje
   useEffect(() => {
     if (!isLoading && days.length > 0) {
-      setTimeout(() => {
-        const el = document.getElementById('today-row')
-        el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 100)
+      requestAnimationFrame(() => {
+        document.getElementById('today-row')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
     }
   }, [isLoading, days.length])
 
   if (isLoading) {
     return (
-      <div className="space-y-0">
-        {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-border/50 animate-pulse">
-            <div className="w-14 h-8 bg-muted rounded" />
+      <div>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse border-b border-border/50">
+            <div className="w-12 h-8 bg-muted rounded-lg" />
             <div className="flex-1 h-4 bg-muted rounded" />
-            <div className="w-16 h-5 bg-muted rounded" />
+            <div className="w-14 h-5 bg-muted rounded" />
           </div>
         ))}
       </div>
@@ -179,20 +174,19 @@ export function Timeline({ days, onDeleteTransaction, isLoading }: TimelineProps
 
   if (days.length === 0) return null
 
-  // Agrupa por mês para inserir cabeçalhos
-  let currentMonth = ''
   const elements: React.ReactNode[] = []
+  let currentMonth = ''
 
   for (const day of days) {
-    const month = day.date.slice(0, 7) // "YYYY-MM"
+    const month = day.date.slice(0, 7)
     if (month !== currentMonth) {
       currentMonth = month
-      elements.push(<MonthHeader key={`header-${month}`} month={month} />)
+      elements.push(<MonthHeader key={`h-${month}`} month={month} />)
     }
     elements.push(
       <DayRow key={day.date} day={day} onDeleteTransaction={onDeleteTransaction} />
     )
   }
 
-  return <div ref={todayRef} className="divide-y-0">{elements}</div>
+  return <div>{elements}</div>
 }
