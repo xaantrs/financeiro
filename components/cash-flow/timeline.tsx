@@ -62,9 +62,6 @@ function DayRow({ day, onDeleteTransaction }: { day: DayGroup; onDeleteTransacti
   const balance = day.accumulatedBalance
   const positive = balance >= 0
 
-  // Dias sem transação e que não são hoje: não renderiza nada
-  if (!hasTransactions && !today) return null
-
   return (
     <div id={today ? 'today-row' : undefined}>
       <button
