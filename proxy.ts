@@ -5,7 +5,7 @@ const SECRET = new TextEncoder().encode(
   process.env.NEXTAUTH_SECRET ?? 'dev-secret-change-in-production'
 )
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const token = req.cookies.get('auth-token')?.value
 
   if (!token) {
