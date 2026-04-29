@@ -13,6 +13,7 @@ const fmt = (v: number) =>
 interface TimelineProps {
   days: DayGroup[]
   onDeleteTransaction: (id: string) => void
+  onUpdateTransaction: (id: string, data: import('@/lib/types').TransactionFormData) => Promise<void>
   isLoading?: boolean
 }
 
@@ -100,7 +101,7 @@ function MonthHeader({ month }: { month: string }) {
   )
 }
 
-export function Timeline({ days, onDeleteTransaction, isLoading }: TimelineProps) {
+export function Timeline({ days, onDeleteTransaction, onUpdateTransaction, isLoading }: TimelineProps) {
   const [selectedDay, setSelectedDay] = useState<DayGroup | null>(null)
 
   useEffect(() => {
@@ -148,6 +149,7 @@ export function Timeline({ days, onDeleteTransaction, isLoading }: TimelineProps
         day={selectedDay}
         onClose={() => setSelectedDay(null)}
         onDelete={(id) => { onDeleteTransaction(id); setSelectedDay(null) }}
+        onUpdate={onUpdateTransaction}
       />
     </>
   )

@@ -27,7 +27,7 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<Tab>('fluxo')
 
   const currentYear = new Date().getFullYear().toString()
-  const { days, isLoading, addTransaction, deleteTransaction } = useTransactions(currentYear)
+  const { days, isLoading, addTransaction, deleteTransaction, updateTransaction } = useTransactions(currentYear)
   const { investments, totalInvestido, isLoading: investmentsLoading, addInvestment } = useInvestments()
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
@@ -114,7 +114,7 @@ export default function HomePage() {
       <div className="flex-1 overflow-y-auto">
         <div className={cn('max-w-lg mx-auto pb-28', activeTab !== 'fluxo' && 'px-4 pt-3')}>
           {activeTab === 'fluxo' && (
-            <Timeline days={days} onDeleteTransaction={deleteTransaction} isLoading={isLoading} />
+            <Timeline days={days} onDeleteTransaction={deleteTransaction} onUpdateTransaction={updateTransaction} isLoading={isLoading} />
           )}
           {activeTab === 'economias' && (
             <SavingsSection

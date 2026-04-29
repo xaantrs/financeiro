@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import { X, CreditCard, Banknote, RepeatIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { TransactionFormData } from '@/lib/types'
+import type { TransactionFormData, Transaction } from '@/lib/types'
 
 interface AddTransactionModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: TransactionFormData) => Promise<void>
   defaultType?: 'entrada' | 'saida'
+  editTransaction?: Transaction | null
 }
 
 const CATEGORIES = [
@@ -18,7 +19,8 @@ const CATEGORIES = [
   'Educacao', 'Lazer', 'Salario', 'Investimentos', 'Outros',
 ]
 
-export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType = 'saida' }: AddTransactionModalProps) {
+export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType = 'saida', editTransaction }: AddTransactionModalProps) {
+  const isEditing = !!editTransaction
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [type, setType] = useState<'entrada' | 'saida'>(defaultType)
   const [formData, setFormData] = useState({
@@ -34,19 +36,33 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
 
   useEffect(() => {
     if (open) {
-      setType(defaultType)
-      setFormData({
-        description: '',
-        amount: '',
-        date: format(new Date(), 'yyyy-MM-dd'),
-        category: '',
-        status: 'pendente',
-        isRecurring: false,
-        recurringEndDate: '',
-        paymentMethod: 'dinheiro',
-      })
+      if (editTransaction) {
+        setType(editTransaction.type)
+        setFormData({
+          description: editTransaction.description,
+          amount: String(editTransaction.amount).replace('.', ','),
+          date: editTransaction.date,
+          category: editTransaction.category ?? '',
+          status: editTransaction.status,
+          isRecurring: editTransaction.isRecurring,
+          recurringEndDate: editTransaction.recurringEndDate ?? '',
+          paymentMethod: editTransaction.paymentMethod ?? 'dinheiro',
+        })
+      } else {
+        setType(defaultType)
+        setFormData({
+          description: '',
+          amount: '',
+          date: format(new Date(), 'yyyy-MM-dd'),
+          category: '',
+          status: 'pendente',
+          isRecurring: false,
+          recurringEndDate: '',
+          paymentMethod: 'dinheiro',
+        })
+      }
     }
-  }, [open, defaultType])
+  }, [open, defaultType, editTransaction])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,7 +71,7 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
     try {
       await onSubmit({
         description: formData.description,
-        amount: parseFloat(formData.amount),
+        amount: parseFloat(formData.amount.replace(',', '.')),
         date: formData.date,
         category: formData.category || '',
         status: formData.status,
@@ -72,7 +88,6 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
   }
 
   const isEntrada = type === 'entrada'
-  const accentColor = isEntrada ? 'emerald' : 'red'
 
   if (!open) return null
 
@@ -94,7 +109,7 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
         )}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold">
-              {isEntrada ? 'Nova Entrada' : 'Nova Saída'}
+              {isEditing ? 'Editar Lançamento' : isEntrada ? 'Nova Entrada' : 'Nova Saída'}
             </h2>
             <button
               onClick={() => onOpenChange(false)}
@@ -135,12 +150,15 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium text-sm">R$</span>
             <input
-              type="number"
-              step="0.01"
-              min="0"
+              type="text"
+              inputMode="decimal"
               placeholder="0,00"
               value={formData.amount}
-              onChange={e => setFormData(p => ({ ...p, amount: e.target.value }))}
+              onChange={e => {
+                // Permite apenas dígitos, vírgula e ponto
+                const val = e.target.value.replace(/[^0-9.,]/g, '')
+                setFormData(p => ({ ...p, amount: val }))
+              }}
               required
               className={cn(
                 'w-full pl-10 pr-4 py-3 text-2xl font-bold tabular-nums rounded-xl border-2 bg-muted/30 outline-none transition-colors',
@@ -295,7 +313,7 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
               isSubmitting && 'opacity-60'
             )}
           >
-            {isSubmitting ? 'Salvando...' : `Salvar ${isEntrada ? 'Entrada' : 'Saída'}`}
+            {isSubmitting ? 'Salvando...' : isEditing ? 'Salvar Alterações' : `Salvar ${isEntrada ? 'Entrada' : 'Saída'}`}
           </button>
         </form>
       </div>
