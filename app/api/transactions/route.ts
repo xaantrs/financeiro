@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import type { Transaction, DayGroup } from '@/lib/types'
 
-function mapRow(r: { id: string; description: string; amount: unknown; date: string; category: string | null; status: string; type: string; isRecurring: boolean; recurringEndDate?: string | null; createdAt: Date; updatedAt: Date }): Transaction {
+function mapRow(r: { id: string; description: string; amount: unknown; date: string; category: string | null; status: string; type: string; isRecurring: boolean; recurringEndDate?: string | null; paymentMethod?: string; createdAt: Date; updatedAt: Date }): Transaction {
   return {
     id: r.id,
     description: r.description,
@@ -14,6 +14,7 @@ function mapRow(r: { id: string; description: string; amount: unknown; date: str
     type: r.type as 'entrada' | 'saida',
     isRecurring: r.isRecurring,
     recurringEndDate: r.recurringEndDate ?? null,
+    paymentMethod: (r.paymentMethod ?? 'dinheiro') as 'dinheiro' | 'cartao_credito',
     created_at: r.createdAt.toISOString(),
     updated_at: r.updatedAt.toISOString(),
   }
@@ -100,6 +101,7 @@ export async function POST(request: Request) {
       type: body.type,
       isRecurring: body.isRecurring ?? false,
       recurringEndDate: body.recurringEndDate ?? null,
+      paymentMethod: body.paymentMethod ?? 'dinheiro',
       userId: session.id,
     },
   })
@@ -129,7 +131,10 @@ function groupByDay(transactions: Transaction[], year: number, initialBalance = 
     const dayTx = byDate.get(dateStr) || []
     const totalEntradas = dayTx.filter(t => t.type === 'entrada').reduce((s, t) => s + Number(t.amount), 0)
     const totalSaidas = dayTx.filter(t => t.type === 'saida').reduce((s, t) => s + Number(t.amount), 0)
-    accumulated += totalEntradas - totalSaidas
+    // Cartão de crédito não afeta o saldo em dinheiro
+    const cashEntradas = dayTx.filter(t => t.type === 'entrada' && t.paymentMethod !== 'cartao_credito').reduce((s, t) => s + Number(t.amount), 0)
+    const cashSaidas = dayTx.filter(t => t.type === 'saida' && t.paymentMethod !== 'cartao_credito').reduce((s, t) => s + Number(t.amount), 0)
+    accumulated += cashEntradas - cashSaidas
     result.push({
       date: dateStr,
       transactions: dayTx,

@@ -4,14 +4,11 @@ import { useEffect, useState } from 'react'
 import { parseISO, isToday, isFuture, format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
-import { Trash2, ArrowUpCircle, ArrowDownCircle, ChevronDown } from 'lucide-react'
-import type { DayGroup, Transaction } from '@/lib/types'
+import { DayDetailModal } from './day-detail-modal'
+import type { DayGroup } from '@/lib/types'
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
-
-const fmtFull = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
 interface TimelineProps {
   days: DayGroup[]
@@ -19,45 +16,18 @@ interface TimelineProps {
   isLoading?: boolean
 }
 
-function TransactionItem({ transaction, onDelete }: { transaction: Transaction; onDelete: (id: string) => void }) {
-  const isEntrada = transaction.type === 'entrada'
-  return (
-    <div className="flex items-center gap-3 py-2.5 px-3 bg-muted/40 rounded-xl">
-      <div className={cn(
-        'shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
-        isEntrada ? 'bg-emerald-500/15 text-emerald-600' : 'bg-red-500/15 text-red-500'
-      )}>
-        {isEntrada
-          ? <ArrowUpCircle className="w-4 h-4" />
-          : <ArrowDownCircle className="w-4 h-4" />}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium leading-tight truncate">{transaction.description}</p>
-        {transaction.category && (
-          <p className="text-[11px] text-muted-foreground mt-0.5">{transaction.category}</p>
-        )}
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <span className={cn('text-sm font-bold tabular-nums', isEntrada ? 'text-emerald-600' : 'text-red-500')}>
-          {isEntrada ? '+' : '-'}{fmtFull(Number(transaction.amount))}
-        </span>
-        <button
-          onClick={() => onDelete(transaction.id)}
-          className="p-1.5 -mr-1 rounded-lg text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10 transition-colors active:scale-90"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function DayRow({ day, onDeleteTransaction }: { day: DayGroup; onDeleteTransaction: (id: string) => void }) {
+function DayRow({ day, onClick }: { day: DayGroup; onClick: () => void }) {
   const date = parseISO(day.date)
   const today = isToday(date)
   const future = isFuture(date)
   const hasTransactions = day.transactions.length > 0
-  const [expanded, setExpanded] = useState(today)
+
+  const cashSaidas = day.transactions
+    .filter(t => t.type === 'saida' && t.paymentMethod !== 'cartao_credito')
+    .reduce((s, t) => s + t.amount, 0)
+  const cardSaidas = day.transactions
+    .filter(t => t.type === 'saida' && t.paymentMethod === 'cartao_credito')
+    .reduce((s, t) => s + t.amount, 0)
 
   const balance = day.accumulatedBalance
   const positive = balance >= 0
@@ -66,11 +36,11 @@ function DayRow({ day, onDeleteTransaction }: { day: DayGroup; onDeleteTransacti
     <div id={today ? 'today-row' : undefined}>
       <button
         className={cn(
-          'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors active:bg-muted/50',
+          'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
           today && 'bg-primary/5',
-          hasTransactions && !today && 'hover:bg-muted/30'
+          hasTransactions ? 'active:bg-muted/50 cursor-pointer' : 'cursor-default'
         )}
-        onClick={() => hasTransactions && setExpanded(v => !v)}
+        onClick={() => hasTransactions && onClick()}
       >
         {/* Dia */}
         <div className="w-12 shrink-0">
@@ -86,48 +56,33 @@ function DayRow({ day, onDeleteTransaction }: { day: DayGroup; onDeleteTransacti
         </div>
 
         {/* Movimentos */}
-        <div className="flex-1 flex flex-col gap-0.5 min-w-0">
+        <div className="flex-1 flex items-center gap-2 flex-wrap min-w-0">
           {hasTransactions ? (
-            <div className="flex items-center gap-2 flex-wrap">
+            <>
               {day.totalEntradas > 0 && (
                 <span className="text-xs text-emerald-600 font-semibold">+{fmt(day.totalEntradas)}</span>
               )}
-              {day.totalSaidas > 0 && (
-                <span className="text-xs text-red-500 font-semibold">-{fmt(day.totalSaidas)}</span>
+              {cashSaidas > 0 && (
+                <span className="text-xs text-red-500 font-semibold">-{fmt(cashSaidas)}</span>
               )}
-            </div>
+              {cardSaidas > 0 && (
+                <span className="text-xs text-violet-500 font-semibold">-{fmt(cardSaidas)} cartão</span>
+              )}
+            </>
           ) : (
             <span className="text-xs text-muted-foreground/40">sem lançamentos</span>
           )}
         </div>
 
         {/* Saldo acumulado */}
-        <div className="flex items-center gap-1 shrink-0">
-          <span className={cn(
-            'text-sm font-bold tabular-nums',
-            positive ? 'text-emerald-600' : 'text-red-500'
-          )}>
-            {fmt(balance)}
-          </span>
-          {hasTransactions && (
-            <ChevronDown className={cn(
-              'w-3.5 h-3.5 text-muted-foreground/50 transition-transform duration-200',
-              expanded && 'rotate-180'
-            )} />
-          )}
-        </div>
+        <span className={cn(
+          'text-sm font-bold tabular-nums shrink-0',
+          positive ? 'text-emerald-600' : 'text-red-500'
+        )}>
+          {fmt(balance)}
+        </span>
       </button>
 
-      {/* Transações expandidas */}
-      {expanded && hasTransactions && (
-        <div className="px-4 pb-3 space-y-2">
-          {day.transactions.map(t => (
-            <TransactionItem key={t.id} transaction={t} onDelete={onDeleteTransaction} />
-          ))}
-        </div>
-      )}
-
-      {/* Separador */}
       <div className="h-px bg-border/50 mx-4" />
     </div>
   )
@@ -146,7 +101,8 @@ function MonthHeader({ month }: { month: string }) {
 }
 
 export function Timeline({ days, onDeleteTransaction, isLoading }: TimelineProps) {
-  // Auto-scroll para hoje
+  const [selectedDay, setSelectedDay] = useState<DayGroup | null>(null)
+
   useEffect(() => {
     if (!isLoading && days.length > 0) {
       requestAnimationFrame(() => {
@@ -181,9 +137,18 @@ export function Timeline({ days, onDeleteTransaction, isLoading }: TimelineProps
       elements.push(<MonthHeader key={`h-${month}`} month={month} />)
     }
     elements.push(
-      <DayRow key={day.date} day={day} onDeleteTransaction={onDeleteTransaction} />
+      <DayRow key={day.date} day={day} onClick={() => setSelectedDay(day)} />
     )
   }
 
-  return <div>{elements}</div>
+  return (
+    <>
+      <div>{elements}</div>
+      <DayDetailModal
+        day={selectedDay}
+        onClose={() => setSelectedDay(null)}
+        onDelete={(id) => { onDeleteTransaction(id); setSelectedDay(null) }}
+      />
+    </>
+  )
 }
