@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  password     String
+  name         String?
+  transactions Transaction[]
+  investments  Investment[]
+  createdAt    DateTime      @default(now())
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  description String
+  amount      Decimal  @db.Decimal(12, 2)
+  date        String
+  category    String?
+  status      String   @default("pendente")
+  type        String
+  isRecurring Boolean  @default(false)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, date])
+}
+
+model Investment {
+  id        String   @id @default(cuid())
+  name      String
+  amount    Decimal  @db.Decimal(12, 2)
+  date      String
+  type      String   @default("geral")
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
