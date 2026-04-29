@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import {
   Dialog,
@@ -26,6 +26,7 @@ interface AddTransactionModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: TransactionFormData) => Promise<void>
+  defaultType?: 'entrada' | 'saida'
 }
 
 const CATEGORIES = [
@@ -40,9 +41,11 @@ const CATEGORIES = [
   'Outros',
 ]
 
-export function AddTransactionModal({ open, onOpenChange, onSubmit }: AddTransactionModalProps) {
+export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType = 'saida' }: AddTransactionModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [type, setType] = useState<'entrada' | 'saida'>('saida')
+  const [type, setType] = useState<'entrada' | 'saida'>(defaultType)
+
+  useEffect(() => { if (open) setType(defaultType) }, [open, defaultType])
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
