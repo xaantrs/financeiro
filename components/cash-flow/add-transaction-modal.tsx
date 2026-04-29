@@ -53,6 +53,7 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
     category: '',
     status: 'pendente' as const,
     isRecurring: false,
+    recurringEndDate: '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,6 +69,7 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
         status: formData.status,
         type,
         isRecurring: formData.isRecurring,
+        recurringEndDate: formData.isRecurring && formData.recurringEndDate ? formData.recurringEndDate : null,
       })
       setFormData({
         description: '',
@@ -76,6 +78,7 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
         category: '',
         status: 'pendente',
         isRecurring: false,
+        recurringEndDate: '',
       })
       setType('saida')
       onOpenChange(false)
@@ -188,18 +191,32 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
           </div>
 
           {/* Recorrente */}
-          <label className="flex items-center gap-3 p-3 bg-muted rounded-lg cursor-pointer">
-            <input
-              type="checkbox"
-              checked={formData.isRecurring}
-              onChange={e => setFormData(p => ({ ...p, isRecurring: e.target.checked }))}
-              className="w-4 h-4 rounded accent-primary"
-            />
-            <div>
-              <p className="text-sm font-medium">Lançamento recorrente</p>
-              <p className="text-xs text-muted-foreground">Usado na previsão dos próximos meses</p>
-            </div>
-          </label>
+          <div className="space-y-2">
+            <label className="flex items-center gap-3 p-3 bg-muted rounded-lg cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.isRecurring}
+                onChange={e => setFormData(p => ({ ...p, isRecurring: e.target.checked }))}
+                className="w-4 h-4 rounded accent-primary"
+              />
+              <div>
+                <p className="text-sm font-medium">Lançamento recorrente</p>
+                <p className="text-xs text-muted-foreground">Repete todo mês no mesmo dia</p>
+              </div>
+            </label>
+            {formData.isRecurring && (
+              <div className="space-y-1 px-1">
+                <Label htmlFor="recurringEndDate">Termina em (opcional)</Label>
+                <Input
+                  id="recurringEndDate"
+                  type="date"
+                  value={formData.recurringEndDate}
+                  min={formData.date}
+                  onChange={e => setFormData(p => ({ ...p, recurringEndDate: e.target.value }))}
+                />
+              </div>
+            )}
+          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

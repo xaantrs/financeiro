@@ -35,7 +35,7 @@ export default function HomePage() {
   const currentMonthDays = days.filter(d => d.date.startsWith(currentMonthStr))
   const totalEntradas = currentMonthDays.reduce((s, d) => s + d.totalEntradas, 0)
   const totalSaidas = currentMonthDays.reduce((s, d) => s + d.totalSaidas, 0)
-  const saldoHoje = days.find(d => d.date === todayStr)?.accumulatedBalance ?? 0
+  const saldoTotal = days.reduce((s, d) => s + d.dailyBalance, 0)
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -71,8 +71,8 @@ export default function HomePage() {
           <div className="flex items-center gap-3 mb-2">
             <div className="flex-1">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Saldo hoje</p>
-              <p className={cn('text-2xl font-bold tabular-nums leading-none', saldoHoje >= 0 ? 'text-emerald-500' : 'text-red-500')}>
-                {fmt(saldoHoje)}
+              <p className={cn('text-2xl font-bold tabular-nums leading-none', saldoTotal >= 0 ? 'text-emerald-500' : 'text-red-500')}>
+                {fmt(saldoTotal)}
               </p>
             </div>
             <div className="flex gap-3">

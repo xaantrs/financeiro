@@ -7,6 +7,7 @@ export interface Transaction {
   status: 'pendente' | 'confirmado'
   type: 'entrada' | 'saida'
   isRecurring: boolean
+  recurringEndDate?: string | null
   created_at: string
   updated_at: string
 }
@@ -28,6 +29,7 @@ export interface TransactionFormData {
   status: 'pendente' | 'confirmado'
   type: 'entrada' | 'saida'
   isRecurring?: boolean
+  recurringEndDate?: string | null
 }
 
 export interface MonthForecast {
