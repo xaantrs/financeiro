@@ -8,20 +8,17 @@ export async function GET(request: Request) {
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
-  const month = searchParams.get('month')
+  const year = searchParams.get('year') ?? new Date().getFullYear().toString()
 
-  let dateFilter: { gte: string; lte: string } | undefined
-  if (month) {
-    const [year, monthNum] = month.split('-')
-    const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate()
-    dateFilter = {
-      gte: `${year}-${monthNum}-01`,
-      lte: `${year}-${monthNum}-${String(lastDay).padStart(2, '0')}`,
-    }
-  }
-
+  // Busca todas as transações do ano
   const rows = await prisma.transaction.findMany({
-    where: { userId: session.id, ...(dateFilter ? { date: dateFilter } : {}) },
+    where: {
+      userId: session.id,
+      date: {
+        gte: `${year}-01-01`,
+        lte: `${year}-12-31`,
+      },
+    },
     orderBy: { date: 'asc' },
   })
 
@@ -38,7 +35,7 @@ export async function GET(request: Request) {
     updated_at: r.updatedAt.toISOString(),
   }))
 
-  return NextResponse.json(groupTransactionsByDay(transactions, month))
+  return NextResponse.json(groupByDay(transactions, parseInt(year)))
 }
 
 export async function POST(request: Request) {
@@ -63,31 +60,38 @@ export async function POST(request: Request) {
   return NextResponse.json(row, { status: 201 })
 }
 
-function groupTransactionsByDay(transactions: Transaction[], month: string | null): DayGroup[] {
-  const now = new Date()
-  let year: number, monthNum: number
-  if (month) {
-    ;[year, monthNum] = month.split('-').map(Number)
-  } else {
-    year = now.getFullYear()
-    monthNum = now.getMonth() + 1
-  }
-
-  const daysInMonth = new Date(year, monthNum, 0).getDate()
+function groupByDay(transactions: Transaction[], year: number): DayGroup[] {
   const byDate = new Map<string, Transaction[]>()
   for (const t of transactions) {
     if (!byDate.has(t.date)) byDate.set(t.date, [])
     byDate.get(t.date)!.push(t)
   }
 
+  // Gera todos os 365/366 dias do ano
+  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+  const daysInYear = isLeap ? 366 : 365
+  const startDate = new Date(year, 0, 1)
+
   let accumulated = 0
-  return Array.from({ length: daysInMonth }, (_, i) => {
-    const d = i + 1
-    const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  const result: DayGroup[] = []
+
+  for (let i = 0; i < daysInYear; i++) {
+    const d = new Date(startDate)
+    d.setDate(d.getDate() + i)
+    const dateStr = d.toISOString().split('T')[0]
     const dayTx = byDate.get(dateStr) || []
     const totalEntradas = dayTx.filter(t => t.type === 'entrada').reduce((s, t) => s + Number(t.amount), 0)
     const totalSaidas = dayTx.filter(t => t.type === 'saida').reduce((s, t) => s + Number(t.amount), 0)
     accumulated += totalEntradas - totalSaidas
-    return { date: dateStr, transactions: dayTx, totalEntradas, totalSaidas, dailyBalance: totalEntradas - totalSaidas, accumulatedBalance: accumulated }
-  })
+    result.push({
+      date: dateStr,
+      transactions: dayTx,
+      totalEntradas,
+      totalSaidas,
+      dailyBalance: totalEntradas - totalSaidas,
+      accumulatedBalance: accumulated,
+    })
+  }
+
+  return result
 }

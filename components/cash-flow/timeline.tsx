@@ -1,11 +1,18 @@
 'use client'
 
-import { format, parseISO, isToday, isFuture, isPast } from 'date-fns'
+import { useEffect, useRef, useState } from 'react'
+import { parseISO, isToday, isFuture, format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
-import { Trash2, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'
+import { Trash2, ArrowUpCircle, ArrowDownCircle, ChevronDown } from 'lucide-react'
 import type { DayGroup, Transaction } from '@/lib/types'
+
+const fmt = (v: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
+
+const fmtFull = (v: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
 interface TimelineProps {
   days: DayGroup[]
@@ -13,163 +20,116 @@ interface TimelineProps {
   isLoading?: boolean
 }
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value)
-}
-
-function TransactionItem({ 
-  transaction, 
-  onDelete 
-}: { 
-  transaction: Transaction
-  onDelete: (id: string) => void 
-}) {
+function TransactionItem({ transaction, onDelete }: { transaction: Transaction; onDelete: (id: string) => void }) {
   const isEntrada = transaction.type === 'entrada'
-  
   return (
-    <div className="flex items-center gap-3 p-3 bg-card rounded-lg border border-border">
-      <div className={cn(
-        "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-        isEntrada ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"
-      )}>
-        {isEntrada ? (
-          <ArrowUpCircle className="w-5 h-5" />
-        ) : (
-          <ArrowDownCircle className="w-5 h-5" />
-        )}
+    <div className="flex items-center gap-2 py-2 px-3 bg-background rounded-lg border border-border">
+      <div className={cn('flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center',
+        isEntrada ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600')}>
+        {isEntrada ? <ArrowUpCircle className="w-4 h-4" /> : <ArrowDownCircle className="w-4 h-4" />}
       </div>
-      
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-foreground truncate">
-          {transaction.description}
-        </p>
-        <div className="flex items-center gap-2 mt-0.5">
-          {transaction.category && (
-            <span className="text-xs text-muted-foreground">
-              {transaction.category}
-            </span>
-          )}
-          <Badge 
-            variant={transaction.status === 'confirmado' ? 'default' : 'outline'}
-            className="text-[10px] px-1.5 py-0"
-          >
+        <p className="text-sm font-medium truncate">{transaction.description}</p>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          {transaction.category && <span className="text-[10px] text-muted-foreground">{transaction.category}</span>}
+          <Badge variant={transaction.status === 'confirmado' ? 'default' : 'outline'} className="text-[9px] px-1 py-0 h-4">
             {transaction.status}
           </Badge>
+          {transaction.isRecurring && <span className="text-[10px] text-violet-500">● recorrente</span>}
         </div>
       </div>
-      
-      <div className="flex items-center gap-2">
-        <span className={cn(
-          "font-semibold tabular-nums",
-          isEntrada ? "text-emerald-600" : "text-red-600"
-        )}>
-          {isEntrada ? '+' : '-'}{formatCurrency(Number(transaction.amount))}
+      <div className="flex items-center gap-1.5">
+        <span className={cn('font-semibold tabular-nums text-sm', isEntrada ? 'text-emerald-600' : 'text-red-600')}>
+          {isEntrada ? '+' : '-'}{fmtFull(Number(transaction.amount))}
         </span>
-        
         <button
           onClick={() => onDelete(transaction.id)}
-          className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-          aria-label="Deletar transacao"
+          className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>
   )
 }
 
-function DayCard({ 
-  day, 
-  onDeleteTransaction,
-  isLast
-}: { 
-  day: DayGroup
-  onDeleteTransaction: (id: string) => void 
-  isLast: boolean
-}) {
+function DayRow({ day, onDeleteTransaction }: { day: DayGroup; onDeleteTransaction: (id: string) => void }) {
+  const [expanded, setExpanded] = useState(false)
   const date = parseISO(day.date)
-  const isCurrentDay = isToday(date)
-  const isFutureDay = isFuture(date)
-  const isPastDay = isPast(date) && !isCurrentDay
+  const today = isToday(date)
+  const future = isFuture(date)
   const hasTransactions = day.transactions.length > 0
-  
+
+  // Expande automaticamente o dia de hoje
+  useEffect(() => { if (today) setExpanded(true) }, [today])
+
+  const balance = day.accumulatedBalance
+  const balancePositive = balance >= 0
+
   return (
-    <div className={cn(
-      "relative",
-      !isLast && "before:absolute before:left-4 before:top-8 before:bottom-0 before:w-0.5",
-      !isLast && isPastDay && "before:bg-muted",
-      !isLast && isCurrentDay && "before:bg-primary",
-      !isLast && isFutureDay && "before:bg-muted-foreground/20"
-    )}>
-      {/* Date row */}
-      <div className={cn(
-        "flex items-center gap-3 py-2",
-        !hasTransactions && "opacity-60"
-      )}>
-        {/* Day circle */}
-        <div className={cn(
-          "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0",
-          isCurrentDay && "bg-primary text-primary-foreground font-bold",
-          isPastDay && hasTransactions && "bg-muted text-foreground",
-          isPastDay && !hasTransactions && "bg-muted/50 text-muted-foreground",
-          isFutureDay && hasTransactions && "bg-muted-foreground/20 text-foreground",
-          isFutureDay && !hasTransactions && "bg-muted-foreground/10 text-muted-foreground"
-        )}>
-          {format(date, 'd')}
-        </div>
-        
-        {/* Day name */}
-        <div className="flex-1 min-w-0">
-          <p className={cn(
-            "text-sm",
-            isCurrentDay && "text-primary font-semibold",
-            !isCurrentDay && hasTransactions && "text-foreground font-medium",
-            !isCurrentDay && !hasTransactions && "text-muted-foreground"
-          )}>
-            {isCurrentDay ? 'Hoje' : format(date, "EEE", { locale: ptBR })}
+    <div
+      id={today ? 'today-row' : undefined}
+      className={cn(
+        'border-b border-border/50 transition-colors',
+        today && 'bg-primary/5',
+        !today && hasTransactions && 'hover:bg-muted/30',
+        !hasTransactions && !today && 'opacity-50'
+      )}
+    >
+      {/* Linha principal — sempre clicável */}
+      <button
+        className="w-full flex items-center gap-3 px-4 py-2.5 text-left"
+        onClick={() => hasTransactions && setExpanded(v => !v)}
+      >
+        {/* Data DD/MM */}
+        <div className="w-14 flex-shrink-0">
+          <p className={cn('text-sm font-semibold tabular-nums', today ? 'text-primary' : 'text-foreground')}>
+            {format(date, 'dd/MM')}
+          </p>
+          <p className="text-[10px] text-muted-foreground capitalize">
+            {format(date, 'EEE', { locale: ptBR })}
           </p>
         </div>
-        
-        {/* Daily movement (only if has transactions) */}
-        {hasTransactions && (
-          <div className="flex items-center gap-2 text-xs">
-            {day.totalEntradas > 0 && (
-              <span className="text-emerald-600 font-medium">
-                +{formatCurrency(day.totalEntradas)}
-              </span>
-            )}
-            {day.totalSaidas > 0 && (
-              <span className="text-red-600 font-medium">
-                -{formatCurrency(day.totalSaidas)}
-              </span>
-            )}
-          </div>
+
+        {/* Indicador hoje */}
+        {today && (
+          <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full font-medium">
+            Hoje
+          </span>
         )}
-        
-        {/* Accumulated balance */}
-        <div className="text-right min-w-[90px]">
-          <p className={cn(
-            "font-semibold tabular-nums text-sm",
-            day.accumulatedBalance >= 0 ? "text-emerald-600" : "text-red-600",
-            !hasTransactions && "opacity-60"
-          )}>
-            {formatCurrency(day.accumulatedBalance)}
-          </p>
+
+        {/* Movimentações do dia */}
+        <div className="flex-1 flex items-center gap-2 min-w-0">
+          {hasTransactions ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              {day.totalEntradas > 0 && (
+                <span className="text-xs text-emerald-600 font-medium">+{fmt(day.totalEntradas)}</span>
+              )}
+              {day.totalSaidas > 0 && (
+                <span className="text-xs text-red-500 font-medium">-{fmt(day.totalSaidas)}</span>
+              )}
+            </div>
+          ) : (
+            <span className="text-xs text-muted-foreground/50">—</span>
+          )}
         </div>
-      </div>
-      
-      {/* Transactions */}
-      {hasTransactions && (
-        <div className="ml-11 space-y-2 pb-3">
-          {day.transactions.map(transaction => (
-            <TransactionItem 
-              key={transaction.id} 
-              transaction={transaction}
-              onDelete={onDeleteTransaction}
-            />
+
+        {/* Saldo acumulado */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className={cn('text-sm font-bold tabular-nums', balancePositive ? 'text-emerald-600' : 'text-red-500')}>
+            {fmt(balance)}
+          </span>
+          {hasTransactions && (
+            <ChevronDown className={cn('w-3.5 h-3.5 text-muted-foreground transition-transform', expanded && 'rotate-180')} />
+          )}
+        </div>
+      </button>
+
+      {/* Transações expandidas */}
+      {expanded && hasTransactions && (
+        <div className="px-4 pb-3 space-y-1.5">
+          {day.transactions.map(t => (
+            <TransactionItem key={t.id} transaction={t} onDelete={onDeleteTransaction} />
           ))}
         </div>
       )}
@@ -177,41 +137,62 @@ function DayCard({
   )
 }
 
-export function Timeline({ days, onDeleteTransaction, isLoading }: TimelineProps) {
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    )
-  }
-  
-  if (days.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-          <ArrowUpCircle className="w-8 h-8 text-muted-foreground" />
-        </div>
-        <h3 className="font-medium text-foreground mb-1">
-          Nenhuma transacao encontrada
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Adicione seu primeiro lancamento clicando no botao abaixo
-        </p>
-      </div>
-    )
-  }
-  
+// Agrupa dias por mês para mostrar cabeçalho de mês
+function MonthHeader({ month }: { month: string }) {
+  const [year, m] = month.split('-')
+  const date = new Date(parseInt(year), parseInt(m) - 1, 1)
   return (
-    <div className="space-y-0">
-      {days.map((day, index) => (
-        <DayCard 
-          key={day.date} 
-          day={day}
-          onDeleteTransaction={onDeleteTransaction}
-          isLast={index === days.length - 1}
-        />
-      ))}
+    <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-1.5 flex items-center justify-between">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground capitalize">
+        {format(date, 'MMMM yyyy', { locale: ptBR })}
+      </p>
     </div>
   )
+}
+
+export function Timeline({ days, onDeleteTransaction, isLoading }: TimelineProps) {
+  const todayRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll para hoje ao carregar
+  useEffect(() => {
+    if (!isLoading && days.length > 0) {
+      setTimeout(() => {
+        const el = document.getElementById('today-row')
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    }
+  }, [isLoading, days.length])
+
+  if (isLoading) {
+    return (
+      <div className="space-y-0">
+        {Array.from({ length: 10 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-border/50 animate-pulse">
+            <div className="w-14 h-8 bg-muted rounded" />
+            <div className="flex-1 h-4 bg-muted rounded" />
+            <div className="w-16 h-5 bg-muted rounded" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (days.length === 0) return null
+
+  // Agrupa por mês para inserir cabeçalhos
+  let currentMonth = ''
+  const elements: React.ReactNode[] = []
+
+  for (const day of days) {
+    const month = day.date.slice(0, 7) // "YYYY-MM"
+    if (month !== currentMonth) {
+      currentMonth = month
+      elements.push(<MonthHeader key={`header-${month}`} month={month} />)
+    }
+    elements.push(
+      <DayRow key={day.date} day={day} onDeleteTransaction={onDeleteTransaction} />
+    )
+  }
+
+  return <div ref={todayRef} className="divide-y-0">{elements}</div>
 }

@@ -5,7 +5,6 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useRouter } from 'next/navigation'
 import { Timeline } from '@/components/cash-flow/timeline'
-import { MonthFilter } from '@/components/cash-flow/month-filter'
 import { AddTransactionModal } from '@/components/cash-flow/add-transaction-modal'
 import { SummaryHeader } from '@/components/cash-flow/summary-header'
 import { SavingsSection } from '@/components/cash-flow/savings-section'
@@ -22,44 +21,42 @@ type ModalType = 'entrada' | 'saida' | null
 export default function HomePage() {
   const router = useRouter()
   const { user } = useSession()
-  const [currentMonth, setCurrentMonth] = useState(new Date())
   const [modalType, setModalType] = useState<ModalType>(null)
   const [activeTab, setActiveTab] = useState<Tab>('fluxo')
   const [headerCollapsed, setHeaderCollapsed] = useState(false)
   const lastScrollY = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const monthParam = format(currentMonth, 'yyyy-MM')
-  const { days, isLoading, addTransaction, deleteTransaction } = useTransactions(monthParam)
+  const currentYear = new Date().getFullYear().toString()
+  const { days, isLoading, addTransaction, deleteTransaction } = useTransactions(currentYear)
   const { investments, totalInvestido, isLoading: investmentsLoading, addInvestment } = useInvestments()
 
-  const totalEntradas = days.reduce((sum, day) => sum + day.totalEntradas, 0)
-  const totalSaidas = days.reduce((sum, day) => sum + day.totalSaidas, 0)
-  const saldoAtual = days.length > 0 ? days[days.length - 1].accumulatedBalance : 0
+  // Totais do mês atual
+  const currentMonthStr = format(new Date(), 'yyyy-MM')
+  const currentMonthDays = days.filter(d => d.date.startsWith(currentMonthStr))
+  const totalEntradas = currentMonthDays.reduce((s, d) => s + d.totalEntradas, 0)
+  const totalSaidas = currentMonthDays.reduce((s, d) => s + d.totalSaidas, 0)
+  const saldoAtual = days.find(d => d.date === format(new Date(), 'yyyy-MM-dd'))?.accumulatedBalance
+    ?? (days.length > 0 ? days[days.length - 1].accumulatedBalance : 0)
 
-  // Colapsa header ao rolar para baixo, expande ao rolar para cima
+  // Colapsa header ao rolar para baixo
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const handleScroll = () => {
+    const handle = () => {
       const y = el.scrollTop
       if (y > lastScrollY.current && y > 60) setHeaderCollapsed(true)
       else if (y < lastScrollY.current) setHeaderCollapsed(false)
       lastScrollY.current = y
     }
-    el.addEventListener('scroll', handleScroll, { passive: true })
-    return () => el.removeEventListener('scroll', handleScroll)
+    el.addEventListener('scroll', handle, { passive: true })
+    return () => el.removeEventListener('scroll', handle)
   }, [])
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/login')
     router.refresh()
-  }
-
-  const handleAddTransaction = async (data: Parameters<typeof addTransaction>[0]) => {
-    await addTransaction(data)
-    setModalType(null)
   }
 
   return (
@@ -81,21 +78,18 @@ export default function HomePage() {
               </button>
               <div>
                 <p className="text-xs text-muted-foreground leading-none">
-                  {format(new Date(), "EEE, d 'de' MMM", { locale: ptBR })}
+                  {format(new Date(), "dd/MM/yyyy", { locale: ptBR })}
                 </p>
                 <h1 className="text-base font-bold text-foreground leading-tight">Fluxo de Caixa</h1>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
+            <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
               <LogOut className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{user?.name ?? user?.email ?? 'Sair'}</span>
             </button>
           </div>
 
-          {/* Conteúdo colapsável */}
+          {/* Colapsável */}
           <div className={cn('transition-all duration-300', headerCollapsed ? 'opacity-0 pb-0' : 'opacity-100 pb-3')}>
             <SummaryHeader
               saldoAtual={saldoAtual}
@@ -124,20 +118,13 @@ export default function HomePage() {
                 </button>
               ))}
             </div>
-
-            {/* Filtro de mês (só na aba fluxo) */}
-            {activeTab === 'fluxo' && (
-              <div className="mt-2">
-                <MonthFilter currentMonth={currentMonth} onMonthChange={setCurrentMonth} />
-              </div>
-            )}
           </div>
         </div>
       </header>
 
       {/* CONTEÚDO SCROLLÁVEL */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        <div className="max-w-lg mx-auto px-4 py-3 pb-24">
+        <div className={cn('max-w-lg mx-auto pb-28', activeTab !== 'fluxo' && 'px-4 py-3')}>
           {activeTab === 'fluxo' && (
             <Timeline days={days} onDeleteTransaction={deleteTransaction} isLoading={isLoading} />
           )}
@@ -147,32 +134,24 @@ export default function HomePage() {
               onAddInvestment={addInvestment}
               isLoading={investmentsLoading}
               totalEntradas={totalEntradas}
-              currentMonth={monthParam}
+              currentMonth={currentMonthStr}
             />
           )}
           {activeTab === 'previsao' && <ForecastSection />}
         </div>
       </div>
 
-      {/* FOOTER — só ícones + e - */}
+      {/* FOOTER — botões + e - */}
       <div className="flex-shrink-0 fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border">
         <div className="max-w-lg mx-auto px-6 py-3 flex items-center justify-center gap-8">
-          {/* Entrada */}
-          <button
-            onClick={() => setModalType('entrada')}
-            className="flex flex-col items-center gap-1 group"
-          >
+          <button onClick={() => setModalType('entrada')} className="flex flex-col items-center gap-1">
             <div className="w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 transition-all flex items-center justify-center shadow-lg shadow-emerald-500/30">
               <Plus className="w-7 h-7 text-white" strokeWidth={3} />
             </div>
             <span className="text-[10px] text-emerald-600 font-medium">Entrada</span>
           </button>
 
-          {/* Saída */}
-          <button
-            onClick={() => setModalType('saida')}
-            className="flex flex-col items-center gap-1 group"
-          >
+          <button onClick={() => setModalType('saida')} className="flex flex-col items-center gap-1">
             <div className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 transition-all flex items-center justify-center shadow-lg shadow-red-500/30">
               <Minus className="w-7 h-7 text-white" strokeWidth={3} />
             </div>
@@ -181,11 +160,10 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Modal de lançamento */}
       <AddTransactionModal
         open={modalType !== null}
         onOpenChange={(open) => { if (!open) setModalType(null) }}
-        onSubmit={handleAddTransaction}
+        onSubmit={async (data) => { await addTransaction(data); setModalType(null) }}
         defaultType={modalType ?? 'saida'}
       />
     </div>
