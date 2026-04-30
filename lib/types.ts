@@ -8,7 +8,6 @@ export interface Transaction {
   type: 'entrada' | 'saida'
   isRecurring: boolean
   recurringEndDate?: string | null
-  paymentMethod: 'dinheiro' | 'cartao_credito'
   created_at: string
   updated_at: string
 }
@@ -31,7 +30,6 @@ export interface TransactionFormData {
   type: 'entrada' | 'saida'
   isRecurring?: boolean
   recurringEndDate?: string | null
-  paymentMethod?: 'dinheiro' | 'cartao_credito'
 }
 
 export interface MonthForecast {

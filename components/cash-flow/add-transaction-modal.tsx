@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { X, CreditCard, Banknote, RepeatIcon } from 'lucide-react'
+import { X, RepeatIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TransactionFormData, Transaction } from '@/lib/types'
 
@@ -31,7 +31,6 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
     status: 'pendente' as 'pendente' | 'confirmado',
     isRecurring: false,
     recurringEndDate: '',
-    paymentMethod: 'dinheiro' as 'dinheiro' | 'cartao_credito',
   })
 
   useEffect(() => {
@@ -46,7 +45,6 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
           status: editTransaction.status,
           isRecurring: editTransaction.isRecurring,
           recurringEndDate: editTransaction.recurringEndDate ?? '',
-          paymentMethod: editTransaction.paymentMethod ?? 'dinheiro',
         })
       } else {
         setType(defaultType)
@@ -58,7 +56,6 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
           status: 'pendente',
           isRecurring: false,
           recurringEndDate: '',
-          paymentMethod: 'dinheiro',
         })
       }
     }
@@ -78,7 +75,6 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
         type,
         isRecurring: formData.isRecurring,
         recurringEndDate: formData.isRecurring && formData.recurringEndDate ? formData.recurringEndDate : null,
-        paymentMethod: formData.paymentMethod,
       })
     } catch (error) {
       console.error('Erro ao adicionar transacao:', error)
@@ -93,52 +89,28 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={() => onOpenChange(false)}
-      />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => onOpenChange(false)} />
 
-      {/* Sheet */}
       <div className="relative w-full sm:max-w-md bg-background rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
 
         {/* Header colorido */}
-        <div className={cn(
-          'px-5 pt-5 pb-4',
-          isEntrada ? 'bg-emerald-500/10' : 'bg-red-500/10'
-        )}>
+        <div className={cn('px-5 pt-5 pb-4', isEntrada ? 'bg-emerald-500/10' : 'bg-red-500/10')}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold">
               {isEditing ? 'Editar Lançamento' : isEntrada ? 'Nova Entrada' : 'Nova Saída'}
             </h2>
-            <button
-              onClick={() => onOpenChange(false)}
-              className="p-1.5 rounded-full text-muted-foreground hover:bg-muted transition-colors"
-            >
+            <button onClick={() => onOpenChange(false)} className="p-1.5 rounded-full text-muted-foreground hover:bg-muted transition-colors">
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Toggle tipo */}
           <div className="flex gap-2 p-1 bg-background/60 rounded-xl">
-            <button
-              type="button"
-              onClick={() => setType('saida')}
-              className={cn(
-                'flex-1 py-2 rounded-lg text-sm font-medium transition-all',
-                type === 'saida' ? 'bg-red-500 text-white shadow-sm' : 'text-muted-foreground'
-              )}
-            >
+            <button type="button" onClick={() => setType('saida')}
+              className={cn('flex-1 py-2 rounded-lg text-sm font-medium transition-all', type === 'saida' ? 'bg-red-500 text-white shadow-sm' : 'text-muted-foreground')}>
               Saída
             </button>
-            <button
-              type="button"
-              onClick={() => setType('entrada')}
-              className={cn(
-                'flex-1 py-2 rounded-lg text-sm font-medium transition-all',
-                type === 'entrada' ? 'bg-emerald-500 text-white shadow-sm' : 'text-muted-foreground'
-              )}
-            >
+            <button type="button" onClick={() => setType('entrada')}
+              className={cn('flex-1 py-2 rounded-lg text-sm font-medium transition-all', type === 'entrada' ? 'bg-emerald-500 text-white shadow-sm' : 'text-muted-foreground')}>
               Entrada
             </button>
           </div>
@@ -146,7 +118,7 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
 
         <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3">
 
-          {/* Valor — destaque */}
+          {/* Valor */}
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium text-sm">R$</span>
             <input
@@ -154,16 +126,11 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
               inputMode="decimal"
               placeholder="0,00"
               value={formData.amount}
-              onChange={e => {
-                // Permite apenas dígitos, vírgula e ponto
-                const val = e.target.value.replace(/[^0-9.,]/g, '')
-                setFormData(p => ({ ...p, amount: val }))
-              }}
+              onChange={e => setFormData(p => ({ ...p, amount: e.target.value.replace(/[^0-9.,]/g, '') }))}
               required
               className={cn(
-                'w-full pl-10 pr-4 py-3 text-2xl font-bold tabular-nums rounded-xl border-2 bg-muted/30 outline-none transition-colors',
-                isEntrada ? 'focus:border-emerald-500' : 'focus:border-red-500',
-                'border-border'
+                'w-full pl-10 pr-4 py-3 text-2xl font-bold tabular-nums rounded-xl border-2 bg-muted/30 outline-none transition-colors border-border',
+                isEntrada ? 'focus:border-emerald-500' : 'focus:border-red-500'
               )}
             />
           </div>
@@ -198,65 +165,19 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
                 className="w-full px-3 py-2 rounded-xl border border-border bg-muted/30 text-sm outline-none focus:border-primary transition-colors"
               >
                 <option value="">Nenhuma</option>
-                {CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
+                {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
           </div>
 
-          {/* Método de pagamento (só para saída) */}
-          {type === 'saida' && (
-            <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wide pl-1">Pagamento</label>
-              <div className="flex gap-2 mt-1">
-                <button
-                  type="button"
-                  onClick={() => setFormData(p => ({ ...p, paymentMethod: 'dinheiro' }))}
-                  className={cn(
-                    'flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border text-sm font-medium transition-all',
-                    formData.paymentMethod === 'dinheiro'
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border text-muted-foreground'
-                  )}
-                >
-                  <Banknote className="w-4 h-4" />
-                  Dinheiro / PIX
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData(p => ({ ...p, paymentMethod: 'cartao_credito' }))}
-                  className={cn(
-                    'flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border text-sm font-medium transition-all',
-                    formData.paymentMethod === 'cartao_credito'
-                      ? 'border-violet-500 bg-violet-500/10 text-violet-600'
-                      : 'border-border text-muted-foreground'
-                  )}
-                >
-                  <CreditCard className="w-4 h-4" />
-                  Cartão
-                </button>
-              </div>
-              {formData.paymentMethod === 'cartao_credito' && (
-                <p className="text-[11px] text-violet-500 mt-1 pl-1">Não debita do saldo em dinheiro</p>
-              )}
-            </div>
-          )}
-
           {/* Status */}
           <div className="flex gap-2">
             {(['pendente', 'confirmado'] as const).map(s => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setFormData(p => ({ ...p, status: s }))}
+              <button key={s} type="button" onClick={() => setFormData(p => ({ ...p, status: s }))}
                 className={cn(
-                  'flex-1 py-2 rounded-xl border text-sm font-medium transition-all capitalize',
-                  formData.status === s
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border text-muted-foreground'
-                )}
-              >
+                  'flex-1 py-2 rounded-xl border text-sm font-medium transition-all',
+                  formData.status === s ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'
+                )}>
                 {s === 'pendente' ? 'Pendente' : 'Confirmado'}
               </button>
             ))}
@@ -264,27 +185,17 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
 
           {/* Recorrente */}
           <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setFormData(p => ({ ...p, isRecurring: !p.isRecurring }))}
+            <button type="button" onClick={() => setFormData(p => ({ ...p, isRecurring: !p.isRecurring }))}
               className={cn(
                 'w-full flex items-center gap-3 p-3 rounded-xl border transition-all',
-                formData.isRecurring
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border bg-muted/30'
-              )}
-            >
+                formData.isRecurring ? 'border-primary bg-primary/10' : 'border-border bg-muted/30'
+              )}>
               <RepeatIcon className={cn('w-4 h-4 shrink-0', formData.isRecurring ? 'text-primary' : 'text-muted-foreground')} />
               <div className="text-left">
-                <p className={cn('text-sm font-medium', formData.isRecurring ? 'text-primary' : '')}>
-                  Recorrente
-                </p>
+                <p className={cn('text-sm font-medium', formData.isRecurring ? 'text-primary' : '')}>Recorrente</p>
                 <p className="text-[11px] text-muted-foreground">Repete todo mês no mesmo dia</p>
               </div>
-              <div className={cn(
-                'ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all',
-                formData.isRecurring ? 'border-primary bg-primary' : 'border-border'
-              )}>
+              <div className={cn('ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all', formData.isRecurring ? 'border-primary bg-primary' : 'border-border')}>
                 {formData.isRecurring && <div className="w-2 h-2 rounded-full bg-white" />}
               </div>
             </button>
@@ -303,7 +214,6 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
             )}
           </div>
 
-          {/* Botão submit */}
           <button
             type="submit"
             disabled={isSubmitting}
@@ -311,8 +221,7 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
               'w-full py-3.5 rounded-xl text-white font-semibold text-sm transition-all active:scale-[0.98]',
               isEntrada ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600',
               isSubmitting && 'opacity-60'
-            )}
-          >
+            )}>
             {isSubmitting ? 'Salvando...' : isEditing ? 'Salvar Alterações' : `Salvar ${isEntrada ? 'Entrada' : 'Saída'}`}
           </button>
         </form>

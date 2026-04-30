@@ -5,17 +5,19 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useRouter } from 'next/navigation'
 import { Timeline } from '@/components/cash-flow/timeline'
+import { QuarterlyView } from '@/components/cash-flow/quarterly-view'
 import { AddTransactionModal } from '@/components/cash-flow/add-transaction-modal'
 import { SavingsSection } from '@/components/cash-flow/savings-section'
 import { ForecastSection } from '@/components/cash-flow/forecast-section'
 import { useTransactions } from '@/hooks/use-transactions'
 import { useInvestments } from '@/hooks/use-investments'
 import { useSession } from '@/hooks/use-session'
-import { Plus, Minus, LayoutList, PiggyBank, TrendingUp, LogOut } from 'lucide-react'
+import { Plus, Minus, LayoutList, PiggyBank, TrendingUp, LogOut, CalendarDays } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type Tab = 'fluxo' | 'economias' | 'previsao'
 type ModalType = 'entrada' | 'saida' | null
+type FluxoView = 'linear' | 'trimestral'
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
@@ -25,6 +27,7 @@ export default function HomePage() {
   const { user } = useSession()
   const [modalType, setModalType] = useState<ModalType>(null)
   const [activeTab, setActiveTab] = useState<Tab>('fluxo')
+  const [fluxoView, setFluxoView] = useState<FluxoView>('linear')
 
   const currentYear = new Date().getFullYear().toString()
   const { days, isLoading, addTransaction, deleteTransaction, updateTransaction } = useTransactions(currentYear)
@@ -114,7 +117,29 @@ export default function HomePage() {
       <div className="flex-1 overflow-y-auto">
         <div className={cn('max-w-lg mx-auto pb-28', activeTab !== 'fluxo' && 'px-4 pt-3')}>
           {activeTab === 'fluxo' && (
-            <Timeline days={days} onDeleteTransaction={deleteTransaction} onUpdateTransaction={updateTransaction} isLoading={isLoading} />
+            <>
+              {/* Toggle linear / trimestral */}
+              <div className="flex items-center justify-end gap-1 px-4 py-2 border-b border-border/50">
+                <button
+                  onClick={() => setFluxoView('linear')}
+                  className={cn('p-1.5 rounded-lg transition-colors', fluxoView === 'linear' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted')}
+                  title="Visão linear"
+                >
+                  <LayoutList className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setFluxoView('trimestral')}
+                  className={cn('p-1.5 rounded-lg transition-colors', fluxoView === 'trimestral' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted')}
+                  title="Visão trimestral"
+                >
+                  <CalendarDays className="w-4 h-4" />
+                </button>
+              </div>
+              {fluxoView === 'linear'
+                ? <Timeline days={days} onDeleteTransaction={deleteTransaction} onUpdateTransaction={updateTransaction} isLoading={isLoading} />
+                : <QuarterlyView days={days} onDeleteTransaction={deleteTransaction} onUpdateTransaction={updateTransaction} />
+              }
+            </>
           )}
           {activeTab === 'economias' && (
             <SavingsSection

@@ -23,13 +23,6 @@ function DayRow({ day, onClick }: { day: DayGroup; onClick: () => void }) {
   const future = isFuture(date)
   const hasTransactions = day.transactions.length > 0
 
-  const cashSaidas = day.transactions
-    .filter(t => t.type === 'saida' && t.paymentMethod !== 'cartao_credito')
-    .reduce((s, t) => s + t.amount, 0)
-  const cardSaidas = day.transactions
-    .filter(t => t.type === 'saida' && t.paymentMethod === 'cartao_credito')
-    .reduce((s, t) => s + t.amount, 0)
-
   const balance = day.accumulatedBalance
   const positive = balance >= 0
 
@@ -60,15 +53,8 @@ function DayRow({ day, onClick }: { day: DayGroup; onClick: () => void }) {
         <div className="flex-1 flex items-center gap-2 flex-wrap min-w-0">
           {hasTransactions ? (
             <>
-              {day.totalEntradas > 0 && (
-                <span className="text-xs text-emerald-600 font-semibold">+{fmt(day.totalEntradas)}</span>
-              )}
-              {cashSaidas > 0 && (
-                <span className="text-xs text-red-500 font-semibold">-{fmt(cashSaidas)}</span>
-              )}
-              {cardSaidas > 0 && (
-                <span className="text-xs text-violet-500 font-semibold">-{fmt(cardSaidas)} cartão</span>
-              )}
+              {day.totalEntradas > 0 && <span className="text-xs text-emerald-600 font-semibold">+{fmt(day.totalEntradas)}</span>}
+              {day.totalSaidas > 0 && <span className="text-xs text-red-500 font-semibold">-{fmt(day.totalSaidas)}</span>}
             </>
           ) : (
             <span className="text-xs text-muted-foreground/40">sem lançamentos</span>
