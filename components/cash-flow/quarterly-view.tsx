@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { parseISO, isToday, format, addMonths, startOfMonth, getDaysInMonth } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -22,17 +22,22 @@ export function QuarterlyView({ days, onDeleteTransaction, onUpdateTransaction }
   const now = new Date()
   const months = [0, 1, 2].map(i => addMonths(startOfMonth(now), i))
 
-  // Indexa os dias por data
   const dayMap = new Map<string, DayGroup>()
   for (const d of days) dayMap.set(d.date, d)
 
-  // Máximo de dias entre os 3 meses
   const maxDays = Math.max(...months.map(m => getDaysInMonth(m)))
+
+  // Scroll para hoje
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      document.getElementById('today-quarterly')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [])
 
   return (
     <>
-      <div className="flex flex-col h-full">
-        {/* Header com nome dos meses */}
+      <div className="flex flex-col">
+        {/* Header com nome dos meses — sticky */}
         <div className="grid grid-cols-3 border-b border-border bg-background sticky top-0 z-10">
           {months.map(m => (
             <div key={m.toISOString()} className="px-2 py-2.5 text-center border-r border-border last:border-r-0">
@@ -45,22 +50,31 @@ export function QuarterlyView({ days, onDeleteTransaction, onUpdateTransaction }
         </div>
 
         {/* Grade de dias */}
-        <div className="divide-y divide-border/50">
+        <div className="divide-y divide-border/40">
           {Array.from({ length: maxDays }, (_, i) => {
             const dayNum = i + 1
             const cells = months.map(m => {
-              const daysInM = getDaysInMonth(m)
-              if (dayNum > daysInM) return null
+              if (dayNum > getDaysInMonth(m)) return null
               const dateStr = `${format(m, 'yyyy-MM')}-${String(dayNum).padStart(2, '0')}`
-              return dayMap.get(dateStr) ?? { date: dateStr, transactions: [], totalEntradas: 0, totalSaidas: 0, dailyBalance: 0, accumulatedBalance: 0 }
+              return dayMap.get(dateStr) ?? {
+                date: dateStr, transactions: [],
+                totalEntradas: 0, totalSaidas: 0, dailyBalance: 0, accumulatedBalance: 0,
+              } as DayGroup
             })
 
+            const rowHasToday = cells.some(c => c && isToday(parseISO(c.date)))
+
             return (
-              <div key={dayNum} className="grid grid-cols-3">
+              <div
+                key={dayNum}
+                id={rowHasToday ? 'today-quarterly' : undefined}
+                className={cn('grid grid-cols-3', rowHasToday && 'bg-primary/5')}
+              >
                 {cells.map((cell, ci) => {
                   if (!cell) {
-                    return <div key={ci} className="border-r border-border/50 last:border-r-0 bg-muted/20" />
+                    return <div key={ci} className="border-r border-border/40 last:border-r-0 bg-muted/10 min-h-[60px]" />
                   }
+
                   const today = isToday(parseISO(cell.date))
                   const hasT = cell.transactions.length > 0
                   const weekday = format(parseISO(cell.date), 'EEE', { locale: ptBR })
@@ -70,37 +84,55 @@ export function QuarterlyView({ days, onDeleteTransaction, onUpdateTransaction }
                       key={ci}
                       onClick={() => hasT && setSelectedDay(cell)}
                       className={cn(
-                        'border-r border-border/50 last:border-r-0 px-2 py-2 text-left transition-colors min-h-[52px]',
-                        today && 'bg-primary/8',
-                        hasT ? 'cursor-pointer active:bg-muted/60' : 'cursor-default'
+                        'border-r border-border/40 last:border-r-0 px-2 py-2 text-left transition-colors min-h-[60px] flex flex-col gap-1',
+                        hasT ? 'cursor-pointer active:bg-muted/60 hover:bg-muted/30' : 'cursor-default'
                       )}
                     >
-                      {/* Número do dia + weekday */}
-                      <div className="flex items-baseline gap-1 mb-1">
+                      {/* Dia + weekday */}
+                      <div className="flex items-center gap-1">
                         <span className={cn(
-                          'text-sm font-bold tabular-nums leading-none',
-                          today ? 'text-primary' : 'text-foreground'
+                          'text-xs font-bold tabular-nums leading-none',
+                          today ? 'text-primary' : 'text-foreground/80'
                         )}>
                           {dayNum}
                         </span>
-                        <span className="text-[9px] text-muted-foreground capitalize">{weekday}</span>
-                        {today && <span className="ml-auto text-[8px] font-bold text-primary uppercase">hoje</span>}
+                        <span className="text-[9px] text-muted-foreground capitalize leading-none">{weekday}</span>
+                        {today && (
+                          <span className="ml-auto text-[8px] font-black text-primary uppercase tracking-tight">hoje</span>
+                        )}
                       </div>
 
                       {/* Valores */}
-                      {hasT && (
-                        <div className="space-y-0.5">
+                      {hasT ? (
+                        <div className="space-y-0.5 w-full">
                           {cell.totalEntradas > 0 && (
-                            <p className="text-[10px] font-semibold text-emerald-600 leading-none">
-                              +{fmtCompact(cell.totalEntradas)}
-                            </p>
+                            <div className="flex items-center gap-0.5">
+                              <span className="text-[9px] text-emerald-600 font-medium leading-none">▲</span>
+                              <span className="text-[10px] font-bold text-emerald-600 leading-none tabular-nums">
+                                {fmtCompact(cell.totalEntradas)}
+                              </span>
+                            </div>
                           )}
                           {cell.totalSaidas > 0 && (
-                            <p className="text-[10px] font-semibold text-red-500 leading-none">
-                              -{fmtCompact(cell.totalSaidas)}
-                            </p>
+                            <div className="flex items-center gap-0.5">
+                              <span className="text-[9px] text-red-500 font-medium leading-none">▼</span>
+                              <span className="text-[10px] font-bold text-red-500 leading-none tabular-nums">
+                                {fmtCompact(cell.totalSaidas)}
+                              </span>
+                            </div>
+                          )}
+                          {/* Saldo do dia */}
+                          {cell.dailyBalance !== 0 && (
+                            <div className={cn(
+                              'text-[9px] font-semibold leading-none tabular-nums pt-0.5 border-t border-border/30',
+                              cell.dailyBalance > 0 ? 'text-emerald-700' : 'text-red-600'
+                            )}>
+                              {cell.dailyBalance > 0 ? '+' : ''}{fmtCompact(cell.dailyBalance)}
+                            </div>
                           )}
                         </div>
+                      ) : (
+                        <span className="text-[9px] text-muted-foreground/30 leading-none">—</span>
                       )}
                     </button>
                   )

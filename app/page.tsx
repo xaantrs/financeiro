@@ -90,8 +90,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Linha 3: tabs */}
-          <div className="flex gap-1.5">
+          {/* Linha 3: tabs + toggle de visão */}
+          <div className="flex items-center gap-1.5">
             {([
               { id: 'fluxo',     label: 'Fluxo',    icon: LayoutList, active: 'bg-primary text-primary-foreground' },
               { id: 'economias', label: 'Economias', icon: PiggyBank,  active: 'bg-amber-500 text-white' },
@@ -109,6 +109,25 @@ export default function HomePage() {
                 {tab.label}
               </button>
             ))}
+            {/* Toggle linear / trimestral — visível apenas na aba Fluxo */}
+            {activeTab === 'fluxo' && (
+              <div className="flex gap-0.5 bg-muted rounded-lg p-0.5 shrink-0">
+                <button
+                  onClick={() => setFluxoView('linear')}
+                  className={cn('p-1.5 rounded-md transition-colors', fluxoView === 'linear' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground')}
+                  title="Visão linear"
+                >
+                  <LayoutList className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setFluxoView('trimestral')}
+                  className={cn('p-1.5 rounded-md transition-colors', fluxoView === 'trimestral' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground')}
+                  title="Visão trimestral"
+                >
+                  <CalendarDays className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -117,29 +136,9 @@ export default function HomePage() {
       <div className="flex-1 overflow-y-auto">
         <div className={cn('max-w-lg mx-auto pb-28', activeTab !== 'fluxo' && 'px-4 pt-3')}>
           {activeTab === 'fluxo' && (
-            <>
-              {/* Toggle linear / trimestral */}
-              <div className="flex items-center justify-end gap-1 px-4 py-2 border-b border-border/50">
-                <button
-                  onClick={() => setFluxoView('linear')}
-                  className={cn('p-1.5 rounded-lg transition-colors', fluxoView === 'linear' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted')}
-                  title="Visão linear"
-                >
-                  <LayoutList className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setFluxoView('trimestral')}
-                  className={cn('p-1.5 rounded-lg transition-colors', fluxoView === 'trimestral' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted')}
-                  title="Visão trimestral"
-                >
-                  <CalendarDays className="w-4 h-4" />
-                </button>
-              </div>
-              {fluxoView === 'linear'
-                ? <Timeline days={days} onDeleteTransaction={deleteTransaction} onUpdateTransaction={updateTransaction} isLoading={isLoading} />
-                : <QuarterlyView days={days} onDeleteTransaction={deleteTransaction} onUpdateTransaction={updateTransaction} />
-              }
-            </>
+            fluxoView === 'linear'
+              ? <Timeline days={days} onDeleteTransaction={deleteTransaction} onUpdateTransaction={updateTransaction} isLoading={isLoading} />
+              : <QuarterlyView days={days} onDeleteTransaction={deleteTransaction} onUpdateTransaction={updateTransaction} />
           )}
           {activeTab === 'economias' && (
             <SavingsSection

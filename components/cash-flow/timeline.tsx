@@ -93,7 +93,7 @@ export function Timeline({ days, onDeleteTransaction, onUpdateTransaction, isLoa
   useEffect(() => {
     if (!isLoading && days.length > 0) {
       requestAnimationFrame(() => {
-        document.getElementById('today-row')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        document.getElementById('today-row')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       })
     }
   }, [isLoading, days.length])

@@ -5,7 +5,7 @@ const SECRET = new TextEncoder().encode(
   process.env.NEXTAUTH_SECRET ?? 'dev-secret-change-in-production'
 )
 const COOKIE = 'auth-token'
-const EXPIRES = '30d'
+const EXPIRES = '365d'
 
 export interface SessionUser {
   id: string
@@ -42,7 +42,7 @@ export async function setSessionCookie(token: string) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: 60 * 60 * 24 * 365,
     path: '/',
   })
 }
