@@ -1,3 +1,10 @@
+export interface CreditCard {
+  id: string
+  name: string
+  paymentDay: number
+  createdAt: string
+}
+
 export interface Transaction {
   id: string
   description: string
@@ -8,6 +15,9 @@ export interface Transaction {
   type: 'entrada' | 'saida'
   isRecurring: boolean
   recurringEndDate?: string | null
+  creditCardId?: string | null
+  isCardExpense?: boolean   // despesa do cartão (excluída do saldo direto)
+  isCardPayment?: boolean   // pagamento virtual agrupado do cartão
   created_at: string
   updated_at: string
 }
@@ -30,6 +40,7 @@ export interface TransactionFormData {
   type: 'entrada' | 'saida'
   isRecurring?: boolean
   recurringEndDate?: string | null
+  creditCardId?: string | null
 }
 
 export interface MonthForecast {

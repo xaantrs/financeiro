@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import type { Transaction, DayGroup } from '@/lib/types'
 
-function mapRow(r: { id: string; description: string; amount: unknown; date: string; category: string | null; status: string; type: string; isRecurring: boolean; recurringEndDate?: string | null; createdAt: Date; updatedAt: Date }): Transaction {
+function mapRow(r: { id: string; description: string; amount: unknown; date: string; category: string | null; status: string; type: string; isRecurring: boolean; recurringEndDate?: string | null; creditCardId?: string | null; createdAt: Date; updatedAt: Date }): Transaction {
   return {
     id: r.id,
     description: r.description,
@@ -14,6 +14,7 @@ function mapRow(r: { id: string; description: string; amount: unknown; date: str
     type: r.type as 'entrada' | 'saida',
     isRecurring: r.isRecurring,
     recurringEndDate: r.recurringEndDate ?? null,
+    creditCardId: r.creditCardId ?? null,
     created_at: r.createdAt.toISOString(),
     updated_at: r.updatedAt.toISOString(),
   }
@@ -27,19 +28,21 @@ export async function GET(request: Request) {
   const year = searchParams.get('year') ?? new Date().getFullYear().toString()
   const yearNum = parseInt(year)
 
-  // Busca transações do ano
-  const rows = await prisma.transaction.findMany({
-    where: {
-      userId: session.id,
-      date: { gte: `${year}-01-01`, lte: `${year}-12-31` },
-    },
-    orderBy: { date: 'asc' },
-  })
-
-  // Busca todas as transações recorrentes (de qualquer data) para expandir no ano
-  const allRecurring = await prisma.transaction.findMany({
-    where: { userId: session.id, isRecurring: true },
-  })
+  const [rows, allRecurring, creditCards] = await Promise.all([
+    prisma.transaction.findMany({
+      where: {
+        userId: session.id,
+        date: { gte: `${year}-01-01`, lte: `${year}-12-31` },
+      },
+      orderBy: { date: 'asc' },
+    }),
+    prisma.transaction.findMany({
+      where: { userId: session.id, isRecurring: true },
+    }),
+    prisma.creditCard.findMany({
+      where: { userId: session.id },
+    }),
+  ])
 
   const transactions: Transaction[] = rows.map(mapRow)
 
@@ -49,13 +52,12 @@ export async function GET(request: Request) {
     if (r.isRecurring) existingRecurringMonths.add(`${r.id}-${r.date.substring(5, 7)}`)
   }
 
-  // Expande cada transação recorrente do mês de criação até dezembro do ano requisitado
+  // Expande transações recorrentes
   const virtualTransactions: Transaction[] = []
   for (const rec of allRecurring) {
     const [recYear, recMonthStr, recDayStr] = rec.date.split('-')
     const recDay = parseInt(recDayStr)
     const startMonth = parseInt(recYear) < yearNum ? 1 : parseInt(recMonthStr)
-    // Mês de término: respeita recurringEndDate se estiver no mesmo ano
     const endDate = (rec as { recurringEndDate?: string | null }).recurringEndDate
     const endMonth = endDate && endDate.startsWith(year) ? parseInt(endDate.split('-')[1]) : 12
     for (let month = startMonth; month <= endMonth; month++) {
@@ -73,6 +75,7 @@ export async function GET(request: Request) {
         status: rec.status as 'pendente' | 'confirmado',
         type: rec.type as 'entrada' | 'saida',
         isRecurring: true,
+        creditCardId: (rec as { creditCardId?: string | null }).creditCardId ?? null,
         created_at: rec.createdAt.toISOString(),
         updated_at: rec.updatedAt.toISOString(),
       })
@@ -81,7 +84,65 @@ export async function GET(request: Request) {
 
   const allTransactions = [...transactions, ...virtualTransactions].sort((a, b) => a.date.localeCompare(b.date))
 
-  return NextResponse.json(groupByDay(allTransactions, yearNum))
+  // Marca despesas de cartão e gera pagamentos virtuais mensais
+  const cardMap = new Map(creditCards.map(c => [c.id, c]))
+  const markedTransactions: Transaction[] = allTransactions.map(t => {
+    if (t.creditCardId && cardMap.has(t.creditCardId)) {
+      return { ...t, isCardExpense: true }
+    }
+    return t
+  })
+
+  // Agrupa despesas de cartão por cartão+mês e cria pagamento virtual no mês seguinte
+  const cardMonthTotals = new Map<string, number>() // "cardId|YYYY-MM" -> total
+  for (const t of markedTransactions) {
+    if (!t.isCardExpense || !t.creditCardId) continue
+    const monthKey = `${t.creditCardId}|${t.date.substring(0, 7)}`
+    cardMonthTotals.set(monthKey, (cardMonthTotals.get(monthKey) ?? 0) + t.amount)
+  }
+
+  const virtualCardPayments: Transaction[] = []
+  for (const [key, total] of cardMonthTotals) {
+    const [cardId, yearMonth] = key.split('|')
+    const card = cardMap.get(cardId)
+    if (!card || total === 0) continue
+
+    // Pagamento no mês seguinte
+    const [expYear, expMonthStr] = yearMonth.split('-')
+    let payYear = parseInt(expYear)
+    let payMonth = parseInt(expMonthStr) + 1
+    if (payMonth > 12) { payMonth = 1; payYear++ }
+
+    if (payYear.toString() !== year) continue // fora do ano visualizado
+
+    const payMonthStr = String(payMonth).padStart(2, '0')
+    const daysInPayMonth = new Date(payYear, payMonth, 0).getDate()
+    const payDay = Math.min(card.paymentDay, daysInPayMonth)
+    const payDate = `${payYear}-${payMonthStr}-${String(payDay).padStart(2, '0')}`
+
+    const virtualId = `card-pay-${cardId}-${yearMonth}`
+    // Verifica se já existe pagamento real com esse ID (evita duplicata)
+    if (markedTransactions.some(t => t.id === virtualId)) continue
+
+    virtualCardPayments.push({
+      id: virtualId,
+      description: `Fatura ${card.name}`,
+      amount: total,
+      date: payDate,
+      category: 'Cartao',
+      status: 'pendente',
+      type: 'saida',
+      isRecurring: false,
+      creditCardId: cardId,
+      isCardPayment: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+  }
+
+  const finalTransactions = [...markedTransactions, ...virtualCardPayments].sort((a, b) => a.date.localeCompare(b.date))
+
+  return NextResponse.json(groupByDay(finalTransactions, yearNum))
 }
 
 export async function POST(request: Request) {
@@ -100,6 +161,7 @@ export async function POST(request: Request) {
       type: body.type,
       isRecurring: body.isRecurring ?? false,
       recurringEndDate: body.recurringEndDate ?? null,
+      creditCardId: body.creditCardId ?? null,
       userId: session.id,
     },
   })
@@ -114,7 +176,6 @@ function groupByDay(transactions: Transaction[], year: number, initialBalance = 
     byDate.get(t.date)!.push(t)
   }
 
-  // Gera todos os 365/366 dias do ano
   const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
   const daysInYear = isLeap ? 366 : 365
   const startDate = new Date(year, 0, 1)
@@ -127,8 +188,11 @@ function groupByDay(transactions: Transaction[], year: number, initialBalance = 
     d.setDate(d.getDate() + i)
     const dateStr = d.toISOString().split('T')[0]
     const dayTx = byDate.get(dateStr) || []
-    const totalEntradas = dayTx.filter(t => t.type === 'entrada').reduce((s, t) => s + Number(t.amount), 0)
-    const totalSaidas = dayTx.filter(t => t.type === 'saida').reduce((s, t) => s + Number(t.amount), 0)
+
+    // Despesas de cartão individuais não entram no saldo (apenas o pagamento virtual entra)
+    const balanceTx = dayTx.filter(t => !t.isCardExpense)
+    const totalEntradas = balanceTx.filter(t => t.type === 'entrada').reduce((s, t) => s + Number(t.amount), 0)
+    const totalSaidas = balanceTx.filter(t => t.type === 'saida').reduce((s, t) => s + Number(t.amount), 0)
     accumulated += totalEntradas - totalSaidas
     result.push({
       date: dateStr,

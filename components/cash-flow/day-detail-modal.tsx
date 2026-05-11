@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { X, ArrowUpCircle, ArrowDownCircle, Trash2, RepeatIcon, Pencil } from 'lucide-react'
+import { X, ArrowUpCircle, ArrowDownCircle, Trash2, RepeatIcon, Pencil, CreditCard } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AddTransactionModal } from './add-transaction-modal'
 import type { DayGroup, Transaction, TransactionFormData } from '@/lib/types'
@@ -20,12 +20,22 @@ const fmtFull = (v: number) =>
 
 function TransactionRow({ t, onDelete, onEdit }: { t: Transaction; onDelete: (id: string) => void; onEdit: (t: Transaction) => void }) {
   const isEntrada = t.type === 'entrada'
-  const isVirtual = t.id.includes('-v')
+  const isVirtual = t.id.includes('-v') || t.id.startsWith('card-pay-')
+  const isCardExpense = !!t.isCardExpense
+  const isCardPayment = !!t.isCardPayment
 
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-border/50 last:border-0">
-      <div className={cn('shrink-0 w-9 h-9 rounded-full flex items-center justify-center', isEntrada ? 'bg-emerald-500/15 text-emerald-600' : 'bg-red-500/15 text-red-500')}>
-        {isEntrada ? <ArrowUpCircle className="w-4 h-4" /> : <ArrowDownCircle className="w-4 h-4" />}
+    <div className={cn('flex items-center gap-3 py-3 border-b border-border/50 last:border-0', isCardExpense && 'opacity-70')}>
+      <div className={cn(
+        'shrink-0 w-9 h-9 rounded-full flex items-center justify-center',
+        isCardExpense ? 'bg-blue-500/15 text-blue-500' :
+        isCardPayment ? 'bg-blue-500/15 text-blue-600' :
+        isEntrada ? 'bg-emerald-500/15 text-emerald-600' : 'bg-red-500/15 text-red-500'
+      )}>
+        {isCardExpense || isCardPayment
+          ? <CreditCard className="w-4 h-4" />
+          : isEntrada ? <ArrowUpCircle className="w-4 h-4" /> : <ArrowDownCircle className="w-4 h-4" />
+        }
       </div>
 
       <div className="flex-1 min-w-0">
@@ -35,17 +45,26 @@ function TransactionRow({ t, onDelete, onEdit }: { t: Transaction; onDelete: (id
         </div>
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
           {t.category && <span className="text-[11px] text-muted-foreground">{t.category}</span>}
-          <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded-full', t.status === 'confirmado' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600')}>
-            {t.status}
-          </span>
+          {isCardExpense && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600">cartão</span>}
+          {isCardPayment && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600">fatura</span>}
+          {!isCardExpense && !isCardPayment && (
+            <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded-full', t.status === 'confirmado' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600')}>
+              {t.status}
+            </span>
+          )}
         </div>
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
-        <span className={cn('text-sm font-bold tabular-nums', isEntrada ? 'text-emerald-600' : 'text-red-500')}>
-          {isEntrada ? '+' : '-'}{fmtFull(t.amount)}
+        <span className={cn(
+          'text-sm font-bold tabular-nums',
+          isCardExpense ? 'text-blue-500' :
+          isCardPayment ? 'text-blue-600' :
+          isEntrada ? 'text-emerald-600' : 'text-red-500'
+        )}>
+          {isEntrada && !isCardExpense ? '+' : '-'}{fmtFull(t.amount)}
         </span>
-        {!isVirtual && (
+        {!isVirtual && !isCardPayment && (
           <>
             <button onClick={() => onEdit(t)} className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-primary hover:bg-primary/10 transition-colors">
               <Pencil className="w-3.5 h-3.5" />

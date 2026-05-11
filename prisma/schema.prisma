@@ -14,6 +14,7 @@ model User {
   name         String?
   transactions Transaction[]
   investments  Investment[]
+  creditCards  CreditCard[]
   createdAt    DateTime      @default(now())
 }
 
@@ -27,12 +28,26 @@ model Transaction {
   type        String
   isRecurring       Boolean @default(false)
   recurringEndDate  String?
+  creditCardId      String?
+  creditCard        CreditCard? @relation(fields: [creditCardId], references: [id])
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([userId, date])
+}
+
+model CreditCard {
+  id          String        @id @default(cuid())
+  name        String
+  paymentDay  Int
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  createdAt   DateTime      @default(now())
+
+  @@index([userId])
 }
 
 model Investment {

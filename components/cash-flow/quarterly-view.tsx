@@ -102,35 +102,14 @@ export function QuarterlyView({ days, onDeleteTransaction, onUpdateTransaction }
                         )}
                       </div>
 
-                      {/* Valores */}
+                      {/* Saldo acumulado do dia */}
                       {hasT ? (
-                        <div className="space-y-0.5 w-full">
-                          {cell.totalEntradas > 0 && (
-                            <div className="flex items-center gap-0.5">
-                              <span className="text-[9px] text-emerald-600 font-medium leading-none">▲</span>
-                              <span className="text-[10px] font-bold text-emerald-600 leading-none tabular-nums">
-                                {fmtCompact(cell.totalEntradas)}
-                              </span>
-                            </div>
-                          )}
-                          {cell.totalSaidas > 0 && (
-                            <div className="flex items-center gap-0.5">
-                              <span className="text-[9px] text-red-500 font-medium leading-none">▼</span>
-                              <span className="text-[10px] font-bold text-red-500 leading-none tabular-nums">
-                                {fmtCompact(cell.totalSaidas)}
-                              </span>
-                            </div>
-                          )}
-                          {/* Saldo do dia */}
-                          {cell.dailyBalance !== 0 && (
-                            <div className={cn(
-                              'text-[9px] font-semibold leading-none tabular-nums pt-0.5 border-t border-border/30',
-                              cell.dailyBalance > 0 ? 'text-emerald-700' : 'text-red-600'
-                            )}>
-                              {cell.dailyBalance > 0 ? '+' : ''}{fmtCompact(cell.dailyBalance)}
-                            </div>
-                          )}
-                        </div>
+                        <span className={cn(
+                          'text-[11px] font-bold leading-none tabular-nums',
+                          cell.accumulatedBalance >= 0 ? 'text-emerald-600' : 'text-red-500'
+                        )}>
+                          {fmtCompact(cell.accumulatedBalance)}
+                        </span>
                       ) : (
                         <span className="text-[9px] text-muted-foreground/30 leading-none">—</span>
                       )}

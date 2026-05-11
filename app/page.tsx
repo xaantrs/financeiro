@@ -7,12 +7,14 @@ import { useRouter } from 'next/navigation'
 import { Timeline } from '@/components/cash-flow/timeline'
 import { QuarterlyView } from '@/components/cash-flow/quarterly-view'
 import { AddTransactionModal } from '@/components/cash-flow/add-transaction-modal'
+import { CreditCardModal } from '@/components/cash-flow/credit-card-modal'
 import { SavingsSection } from '@/components/cash-flow/savings-section'
 import { ForecastSection } from '@/components/cash-flow/forecast-section'
 import { useTransactions } from '@/hooks/use-transactions'
 import { useInvestments } from '@/hooks/use-investments'
 import { useSession } from '@/hooks/use-session'
-import { Plus, Minus, LayoutList, PiggyBank, TrendingUp, LogOut, CalendarDays } from 'lucide-react'
+import { useCreditCards } from '@/hooks/use-credit-cards'
+import { Plus, Minus, LayoutList, PiggyBank, TrendingUp, LogOut, CalendarDays, CreditCard } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type Tab = 'fluxo' | 'economias' | 'previsao'
@@ -26,19 +28,36 @@ export default function HomePage() {
   const router = useRouter()
   const { user } = useSession()
   const [modalType, setModalType] = useState<ModalType>(null)
+  const [cardModalOpen, setCardModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('fluxo')
   const [fluxoView, setFluxoView] = useState<FluxoView>('linear')
 
   const currentYear = new Date().getFullYear().toString()
   const { days, isLoading, addTransaction, deleteTransaction, updateTransaction } = useTransactions(currentYear)
   const { investments, totalInvestido, isLoading: investmentsLoading, addInvestment } = useInvestments()
+  const { cards, addCard, deleteCard } = useCreditCards()
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
   const currentMonthStr = format(new Date(), 'yyyy-MM')
   const currentMonthDays = days.filter(d => d.date.startsWith(currentMonthStr))
   const totalEntradas = currentMonthDays.reduce((s, d) => s + d.totalEntradas, 0)
   const totalSaidas = currentMonthDays.reduce((s, d) => s + d.totalSaidas, 0)
-  const saldoTotal = days.reduce((s, d) => s + d.dailyBalance, 0)
+
+  // Saldo atual: apenas transações confirmadas até hoje (excluindo despesas de cartão individuais)
+  const saldoAtual = days
+    .filter(d => d.date <= todayStr)
+    .reduce((s, d) => {
+      const confirmedIn = d.transactions
+        .filter(t => t.type === 'entrada' && t.status === 'confirmado' && !t.isCardExpense)
+        .reduce((a, t) => a + t.amount, 0)
+      const confirmedOut = d.transactions
+        .filter(t => t.type === 'saida' && t.status === 'confirmado' && !t.isCardExpense)
+        .reduce((a, t) => a + t.amount, 0)
+      return s + confirmedIn - confirmedOut
+    }, 0)
+
+  // Saldo futuro: todos os lançamentos (já calculado pelo accumulatedBalance do último dia do ano)
+  const saldoFuturo = days.reduce((s, d) => s + d.dailyBalance, 0)
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -70,15 +89,23 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* Linha 2: saldo em destaque + entradas/saídas */}
-          <div className="flex items-center gap-3 mb-2">
-            <div className="flex-1">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Saldo hoje</p>
-              <p className={cn('text-2xl font-bold tabular-nums leading-none', saldoTotal >= 0 ? 'text-emerald-500' : 'text-red-500')}>
-                {fmt(saldoTotal)}
+          {/* Linha 2: dois saldos lado a lado */}
+          <div className="flex items-stretch gap-2 mb-2">
+            <div className="flex-1 bg-muted/40 rounded-xl px-3 py-2">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Saldo atual</p>
+              <p className={cn('text-xl font-bold tabular-nums leading-tight', saldoAtual >= 0 ? 'text-emerald-500' : 'text-red-500')}>
+                {fmt(saldoAtual)}
               </p>
+              <p className="text-[10px] text-muted-foreground">confirmados até hoje</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex-1 bg-muted/40 rounded-xl px-3 py-2">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Previsão</p>
+              <p className={cn('text-xl font-bold tabular-nums leading-tight', saldoFuturo >= 0 ? 'text-emerald-500' : 'text-red-500')}>
+                {fmt(saldoFuturo)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">incluindo pendentes</p>
+            </div>
+            <div className="flex flex-col gap-1">
               <div className="text-right">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Entradas</p>
                 <p className="text-sm font-semibold text-emerald-500 tabular-nums">+{fmt(totalEntradas)}</p>
@@ -155,12 +182,19 @@ export default function HomePage() {
 
       {/* ── FOOTER ── */}
       <div className="shrink-0 fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border safe-area-bottom">
-        <div className="max-w-lg mx-auto flex items-center justify-center gap-10 py-3 px-6">
+        <div className="max-w-lg mx-auto flex items-center justify-center gap-8 py-3 px-6">
           <button onClick={() => setModalType('entrada')} className="flex flex-col items-center gap-0.5">
             <div className="w-14 h-14 rounded-full bg-emerald-500 active:scale-95 transition-transform flex items-center justify-center shadow-lg shadow-emerald-500/25">
               <Plus className="w-7 h-7 text-white" strokeWidth={3} />
             </div>
             <span className="text-[10px] text-emerald-600 font-medium">Entrada</span>
+          </button>
+
+          <button onClick={() => setCardModalOpen(true)} className="flex flex-col items-center gap-0.5">
+            <div className="w-12 h-12 rounded-full bg-blue-500 active:scale-95 transition-transform flex items-center justify-center shadow-lg shadow-blue-500/25">
+              <CreditCard className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-[10px] text-blue-500 font-medium">Cartões</span>
           </button>
 
           <button onClick={() => setModalType('saida')} className="flex flex-col items-center gap-0.5">
@@ -177,6 +211,15 @@ export default function HomePage() {
         onOpenChange={(open) => { if (!open) setModalType(null) }}
         onSubmit={async (data) => { await addTransaction(data); setModalType(null) }}
         defaultType={modalType ?? 'saida'}
+        creditCards={cards}
+      />
+
+      <CreditCardModal
+        open={cardModalOpen}
+        onOpenChange={setCardModalOpen}
+        cards={cards}
+        onAddCard={addCard}
+        onDeleteCard={deleteCard}
       />
     </div>
   )

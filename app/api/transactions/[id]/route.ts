@@ -35,7 +35,7 @@ export async function PATCH(
       ...(body.type !== undefined && { type: body.type }),
       ...(body.isRecurring !== undefined && { isRecurring: body.isRecurring }),
       ...(body.recurringEndDate !== undefined && { recurringEndDate: body.recurringEndDate }),
-      ...(body.paymentMethod !== undefined && { paymentMethod: body.paymentMethod }),
+      ...(body.creditCardId !== undefined && { creditCardId: body.creditCardId }),
     },
   })
 

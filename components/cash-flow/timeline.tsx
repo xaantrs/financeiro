@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { parseISO, isToday, isFuture, format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+import { CreditCard } from 'lucide-react'
 import { DayDetailModal } from './day-detail-modal'
 import type { DayGroup } from '@/lib/types'
 
@@ -22,6 +23,7 @@ function DayRow({ day, onClick }: { day: DayGroup; onClick: () => void }) {
   const today = isToday(date)
   const future = isFuture(date)
   const hasTransactions = day.transactions.length > 0
+  const cardTotal = day.transactions.filter(t => t.isCardExpense).reduce((s, t) => s + t.amount, 0)
 
   const balance = day.accumulatedBalance
   const positive = balance >= 0
@@ -55,6 +57,11 @@ function DayRow({ day, onClick }: { day: DayGroup; onClick: () => void }) {
             <>
               {day.totalEntradas > 0 && <span className="text-xs text-emerald-600 font-semibold">+{fmt(day.totalEntradas)}</span>}
               {day.totalSaidas > 0 && <span className="text-xs text-red-500 font-semibold">-{fmt(day.totalSaidas)}</span>}
+              {cardTotal > 0 && (
+                <span className="flex items-center gap-0.5 text-xs text-blue-500 font-semibold">
+                  <CreditCard className="w-3 h-3" />{fmt(cardTotal)}
+                </span>
+              )}
             </>
           ) : (
             <span className="text-xs text-muted-foreground/40">sem lançamentos</span>
