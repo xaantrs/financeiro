@@ -72,7 +72,7 @@ export function QuarterlyView({ days, onDeleteTransaction, onUpdateTransaction }
               >
                 {cells.map((cell, ci) => {
                   if (!cell) {
-                    return <div key={ci} className="border-r border-border/40 last:border-r-0 bg-muted/10 min-h-[60px]" />
+                    return <div key={ci} className="border-r border-border/40 last:border-r-0 bg-muted/10 min-h-13" />
                   }
 
                   const today = isToday(parseISO(cell.date))
@@ -102,17 +102,14 @@ export function QuarterlyView({ days, onDeleteTransaction, onUpdateTransaction }
                         )}
                       </div>
 
-                      {/* Saldo acumulado do dia */}
-                      {hasT ? (
-                        <span className={cn(
-                          'text-[11px] font-bold leading-none tabular-nums',
-                          cell.accumulatedBalance >= 0 ? 'text-emerald-600' : 'text-red-500'
-                        )}>
-                          {fmtCompact(cell.accumulatedBalance)}
-                        </span>
-                      ) : (
-                        <span className="text-[9px] text-muted-foreground/30 leading-none">—</span>
-                      )}
+                      {/* Saldo acumulado do dia — sempre visível */}
+                      <span className={cn(
+                        'text-[11px] font-bold leading-none tabular-nums',
+                        cell.accumulatedBalance >= 0 ? 'text-emerald-600' : 'text-red-500',
+                        !hasT && 'opacity-40'
+                      )}>
+                        {fmtCompact(cell.accumulatedBalance)}
+                      </span>
                     </button>
                   )
                 })}

@@ -43,21 +43,20 @@ export default function HomePage() {
   const totalEntradas = currentMonthDays.reduce((s, d) => s + d.totalEntradas, 0)
   const totalSaidas = currentMonthDays.reduce((s, d) => s + d.totalSaidas, 0)
 
-  // Saldo atual: apenas transações confirmadas até hoje (excluindo despesas de cartão individuais)
-  const saldoAtual = days
-    .filter(d => d.date <= todayStr)
-    .reduce((s, d) => {
-      const confirmedIn = d.transactions
-        .filter(t => t.type === 'entrada' && t.status === 'confirmado' && !t.isCardExpense)
-        .reduce((a, t) => a + t.amount, 0)
-      const confirmedOut = d.transactions
-        .filter(t => t.type === 'saida' && t.status === 'confirmado' && !t.isCardExpense)
-        .reduce((a, t) => a + t.amount, 0)
-      return s + confirmedIn - confirmedOut
-    }, 0)
+  // Saldo atual: acumulado do último dia até hoje (só confirmados, calculado no servidor)
+  const todayDayGroup = days.find(d => d.date === todayStr)
+  const saldoAtual = todayDayGroup?.accumulatedBalance ?? days.filter(d => d.date <= todayStr).at(-1)?.accumulatedBalance ?? 0
 
-  // Saldo futuro: todos os lançamentos (já calculado pelo accumulatedBalance do último dia do ano)
-  const saldoFuturo = days.reduce((s, d) => s + d.dailyBalance, 0)
+  // Previsão: confirmados + pendentes (todos os lançamentos)
+  const saldoFuturo = days.reduce((s, d) => {
+    const pendIn = d.transactions
+      .filter(t => t.type === 'entrada' && t.status === 'pendente' && !t.isCardExpense)
+      .reduce((a, t) => a + t.amount, 0)
+    const pendOut = d.transactions
+      .filter(t => t.type === 'saida' && t.status === 'pendente' && !t.isCardExpense)
+      .reduce((a, t) => a + t.amount, 0)
+    return s + d.dailyBalance + pendIn - pendOut
+  }, 0)
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })

@@ -189,10 +189,10 @@ function groupByDay(transactions: Transaction[], year: number, initialBalance = 
     const dateStr = d.toISOString().split('T')[0]
     const dayTx = byDate.get(dateStr) || []
 
-    // Despesas de cartão individuais não entram no saldo (apenas o pagamento virtual entra)
-    const balanceTx = dayTx.filter(t => !t.isCardExpense)
-    const totalEntradas = balanceTx.filter(t => t.type === 'entrada').reduce((s, t) => s + Number(t.amount), 0)
-    const totalSaidas = balanceTx.filter(t => t.type === 'saida').reduce((s, t) => s + Number(t.amount), 0)
+    // Só confirmadas entram no saldo acumulado; despesas individuais de cartão também ficam de fora
+    const confirmedTx = dayTx.filter(t => !t.isCardExpense && t.status === 'confirmado')
+    const totalEntradas = confirmedTx.filter(t => t.type === 'entrada').reduce((s, t) => s + Number(t.amount), 0)
+    const totalSaidas = confirmedTx.filter(t => t.type === 'saida').reduce((s, t) => s + Number(t.amount), 0)
     accumulated += totalEntradas - totalSaidas
     result.push({
       date: dateStr,

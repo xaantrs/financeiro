@@ -226,38 +226,40 @@ export function AddTransactionModal({ open, onOpenChange, onSubmit, defaultType 
             </div>
           )}
 
-          {/* Recorrente — apenas se não for cartão */}
-          {!formData.creditCardId && (
-            <div className="space-y-2">
-              <button type="button" onClick={() => setFormData(p => ({ ...p, isRecurring: !p.isRecurring }))}
-                className={cn(
-                  'w-full flex items-center gap-3 p-3 rounded-xl border transition-all',
-                  formData.isRecurring ? 'border-primary bg-primary/10' : 'border-border bg-muted/30'
-                )}>
-                <RepeatIcon className={cn('w-4 h-4 shrink-0', formData.isRecurring ? 'text-primary' : 'text-muted-foreground')} />
-                <div className="text-left">
-                  <p className={cn('text-sm font-medium', formData.isRecurring ? 'text-primary' : '')}>Recorrente</p>
-                  <p className="text-[11px] text-muted-foreground">Repete todo mês no mesmo dia</p>
-                </div>
-                <div className={cn('ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all', formData.isRecurring ? 'border-primary bg-primary' : 'border-border')}>
-                  {formData.isRecurring && <div className="w-2 h-2 rounded-full bg-white" />}
-                </div>
-              </button>
+          {/* Recorrente */}
+          <div className="space-y-2">
+            <button type="button" onClick={() => setFormData(p => ({ ...p, isRecurring: !p.isRecurring }))}
+              className={cn(
+                'w-full flex items-center gap-3 p-3 rounded-xl border transition-all',
+                formData.isRecurring ? 'border-primary bg-primary/10' : 'border-border bg-muted/30'
+              )}>
+              <RepeatIcon className={cn('w-4 h-4 shrink-0', formData.isRecurring ? 'text-primary' : 'text-muted-foreground')} />
+              <div className="text-left">
+                <p className={cn('text-sm font-medium', formData.isRecurring ? 'text-primary' : '')}>Recorrente</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {formData.creditCardId
+                    ? 'Lança na fatura todo mês no mesmo dia'
+                    : 'Repete todo mês no mesmo dia'}
+                </p>
+              </div>
+              <div className={cn('ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all', formData.isRecurring ? 'border-primary bg-primary' : 'border-border')}>
+                {formData.isRecurring && <div className="w-2 h-2 rounded-full bg-white" />}
+              </div>
+            </button>
 
-              {formData.isRecurring && (
-                <div>
-                  <label className="text-[10px] text-muted-foreground uppercase tracking-wide pl-1">Termina em (opcional)</label>
-                  <input
-                    type="date"
-                    value={formData.recurringEndDate}
-                    min={formData.date}
-                    onChange={e => setFormData(p => ({ ...p, recurringEndDate: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2 rounded-xl border border-border bg-muted/30 text-sm outline-none focus:border-primary transition-colors"
-                  />
-                </div>
-              )}
-            </div>
-          )}
+            {formData.isRecurring && (
+              <div>
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wide pl-1">Termina em (opcional)</label>
+                <input
+                  type="date"
+                  value={formData.recurringEndDate}
+                  min={formData.date}
+                  onChange={e => setFormData(p => ({ ...p, recurringEndDate: e.target.value }))}
+                  className="w-full mt-1 px-3 py-2 rounded-xl border border-border bg-muted/30 text-sm outline-none focus:border-primary transition-colors"
+                />
+              </div>
+            )}
+          </div>
 
           <button
             type="submit"
