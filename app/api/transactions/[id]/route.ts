@@ -27,15 +27,13 @@ export async function PATCH(
   await prisma.transaction.updateMany({
     where: { id, userId: session.id },
     data: {
+      ...(body.kind !== undefined && { kind: body.kind }),
       ...(body.description !== undefined && { description: body.description }),
       ...(body.amount !== undefined && { amount: body.amount }),
       ...(body.date !== undefined && { date: body.date }),
-      ...(body.category !== undefined && { category: body.category }),
       ...(body.status !== undefined && { status: body.status }),
-      ...(body.type !== undefined && { type: body.type }),
-      ...(body.isRecurring !== undefined && { isRecurring: body.isRecurring }),
-      ...(body.recurringEndDate !== undefined && { recurringEndDate: body.recurringEndDate }),
-      ...(body.creditCardId !== undefined && { creditCardId: body.creditCardId }),
+      ...(body.recurrence !== undefined && { recurrence: body.recurrence }),
+      ...(body.tagId !== undefined && { tagId: body.tagId }),
     },
   })
 

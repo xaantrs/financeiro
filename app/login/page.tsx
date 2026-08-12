@@ -51,7 +51,7 @@ export default function LoginPage() {
           <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mb-4">
             <Wallet className="w-7 h-7 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Fluxo de Caixa</h1>
+          <h1 className="text-2xl font-bold text-foreground">App Financeiro</h1>
           <p className="text-sm text-muted-foreground mt-1">Controle financeiro pessoal</p>
         </div>
 

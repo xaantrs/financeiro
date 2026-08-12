@@ -1,54 +1,71 @@
-export interface CreditCard {
+export type TransactionKind = 'entrada' | 'saida' | 'diario' | 'economia' | 'cartao'
+export type TransactionStatus = 'pendente' | 'confirmado'
+export type Recurrence = 'none' | 'daily' | 'weekly' | 'monthly'
+
+export interface Tag {
   id: string
   name: string
-  paymentDay: number
+  color: string
   createdAt: string
 }
 
 export interface Transaction {
   id: string
+  kind: TransactionKind
   description: string
   amount: number
-  date: string
-  category: string | null
-  status: 'pendente' | 'confirmado'
-  type: 'entrada' | 'saida'
-  isRecurring: boolean
-  recurringEndDate?: string | null
-  creditCardId?: string | null
-  isCardExpense?: boolean   // despesa do cartão (excluída do saldo direto)
-  isCardPayment?: boolean   // pagamento virtual agrupado do cartão
-  created_at: string
-  updated_at: string
-}
-
-export interface DayGroup {
-  date: string
-  transactions: Transaction[]
-  totalEntradas: number
-  totalSaidas: number
-  dailyBalance: number
-  accumulatedBalance: number
+  date: string // 'YYYY-MM-DD'
+  status: TransactionStatus
+  recurrence: Recurrence
+  tagId?: string | null
+  tag?: Tag | null
+  isVirtual?: boolean // ocorrência gerada por recorrência, não é uma linha real no banco
+  createdAt: string
+  updatedAt: string
 }
 
 export interface TransactionFormData {
+  kind: TransactionKind
   description: string
   amount: number
   date: string
-  category: string
-  status: 'pendente' | 'confirmado'
-  type: 'entrada' | 'saida'
-  isRecurring?: boolean
-  recurringEndDate?: string | null
-  creditCardId?: string | null
+  status?: TransactionStatus
+  recurrence?: Recurrence
+  tagId?: string | null
 }
 
-export interface MonthForecast {
-  month: string       // "YYYY-MM"
-  label: string       // "Jan/2025"
+export interface DayCell {
+  date: string // 'YYYY-MM-DD'
   entradas: number
   saidas: number
-  saldo: number
-  acumulado: number
-  isProjection: boolean
+  diarios: number
+  economias: number
+  cartao: number
+  dailyBalance: number
+  accumulatedBalance: number
+  transactions: Transaction[]
+  allConfirmed: boolean
+}
+
+export interface MonthTotais {
+  month: string // 'YYYY-MM'
+  entradas: number
+  saidas: number
+  diarios: number
+  economias: number
+  cartao: number
+  diarioProjetadoRestoMes: number
+  diarioFixoAtual: number
+  performance: number
+  custoDeVida: number
+  diarioMedio: number
+  economizadoPct: number
+  diaAtual: number
+  diasNoMes: number
+}
+
+export interface HorizonteMonth {
+  month: string // 'YYYY-MM'
+  label: string
+  days: { day: number; date: string; saldo: number | null }[]
 }
